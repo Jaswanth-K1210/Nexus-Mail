@@ -54,7 +54,7 @@ export default function Landing() {
                     className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 w-max backdrop-blur-md mb-8"
                 >
                     <Sparkles className="w-4 h-4 text-nexus-primary" />
-                    <span className="text-sm font-medium tracking-wide text-white/80">Enterprise SaaS Architecture Released</span>
+                    <span className="text-sm font-medium tracking-wide text-white/80">The Open Source Architecture of Empathy</span>
                 </motion.div>
 
                 <motion.h1
@@ -98,8 +98,8 @@ export default function Landing() {
             {/* Features Grid */}
             <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
                 <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-5xl font-bold mb-4">Engineered for Enterprise</h2>
-                    <p className="text-white/50 text-lg max-w-2xl mx-auto">Open-source flexibility. B2B SaaS scalability. Uncompromising security.</p>
+                    <h2 className="text-3xl md:text-5xl font-bold mb-4">Engineered for the Working Class</h2>
+                    <p className="text-white/50 text-lg max-w-2xl mx-auto">Built to shield you from cognitive overload, no matter your role. Always Free. Always Private.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -135,50 +135,52 @@ export default function Landing() {
                 </div>
             </section>
 
-            {/* SaaS Tiers */}
+            {/* The 4 Archetypes */}
             <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
                 <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-5xl font-bold mb-4">Scalable Tiers</h2>
-                    <p className="text-white/50 text-lg max-w-2xl mx-auto">Deploy internally or use our hosted cloud infrastructure.</p>
+                    <h2 className="text-3xl md:text-5xl font-bold mb-4">The 4 Archetypes</h2>
+                    <p className="text-white/50 text-lg max-w-2xl mx-auto">Because the working class is not a monolith. Silicon Valley builds one-size-fits-all AI. We build emotional ergonomics.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                    {/* Free */}
-                    <div className="glass-panel p-8 border-white/10 opacity-80 hover:opacity-100 transition-opacity flex flex-col">
-                        <h3 className="text-2xl font-bold text-white mb-2">Community Free</h3>
-                        <p className="text-3xl font-light mb-6">$0<span className="text-lg text-white/40">/mo</span></p>
-                        <ul className="text-white/60 flex flex-col gap-4 mb-8 flex-1 text-sm font-light border-t border-white/10 pt-6">
-                            <li className="flex items-center gap-3"><Clock className="w-4 h-4 text-nexus-primary" /> 15-Minute Sync Polling</li>
-                            <li className="flex items-center gap-3"><Lock className="w-4 h-4" /> 500 Emails / Week</li>
-                            <li className="flex items-center gap-3"><Sparkles className="w-4 h-4" /> Basic Priority Splitting</li>
-                        </ul>
-                        <button onClick={() => navigate('/login')} className="glass-button w-full py-3 hover:bg-white/10">Get Started</button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                    {/* Archetype 1 */}
+                    <div className="glass-panel p-8 border-nexus-primary/20 shadow-[0_0_20px_rgba(177,158,239,0.05)] hover:border-nexus-primary/50 transition-colors flex flex-col group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-nexus-primary/5 blur-[50px] rounded-full group-hover:bg-nexus-primary/20 transition-all duration-700"></div>
+                        <Shield className="w-8 h-8 text-nexus-primary mb-4" />
+                        <h3 className="text-2xl font-bold text-white mb-2">The Corporate Professional</h3>
+                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
+                            Surviving toxic office politics and massive context overload. Our <strong>Corporate Shield</strong> automatically adopts extremely deferential, culturally respectful tones for VIPs, protecting your sanity and creating a flawless paper-trail.
+                        </p>
                     </div>
 
-                    {/* Pro */}
-                    <div className="glass-panel p-8 border-nexus-primary/30 shadow-[0_0_30px_rgba(177,158,239,0.1)] relative transform md:-translate-y-4 flex flex-col">
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-nexus-primary text-black text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Most Popular</div>
-                        <h3 className="text-2xl font-bold text-nexus-primary mb-2">Pro Individual</h3>
-                        <p className="text-3xl font-light mb-6">$15<span className="text-lg text-white/40">/mo</span></p>
-                        <ul className="text-white/80 flex flex-col gap-4 mb-8 flex-1 text-sm font-light border-t border-white/10 pt-6">
-                            <li className="flex items-center gap-3"><Zap className="w-4 h-4 text-nexus-primary" /> Real-time Google Webhook Push</li>
-                            <li className="flex items-center gap-3"><Lock className="w-4 h-4 text-blue-400" /> Unlimited Email Syncs</li>
-                            <li className="flex items-center gap-3"><Calendar className="w-4 h-4 text-purple-400" /> Full Specialist Timeline</li>
-                            <li className="flex items-center gap-3"><Shield className="w-4 h-4" /> Draft-First Replies</li>
-                        </ul>
-                        <button onClick={() => navigate('/login')} className="glass-button glass-button-primary w-full py-3">Upgrade to Pro</button>
+                    {/* Archetype 2 */}
+                    <div className="glass-panel p-8 border-blue-400/20 shadow-[0_0_20px_rgba(96,165,250,0.05)] hover:border-blue-400/50 transition-colors flex flex-col group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 blur-[50px] rounded-full group-hover:bg-blue-500/20 transition-all duration-700"></div>
+                        <Zap className="w-8 h-8 text-blue-400 mb-4" />
+                        <h3 className="text-2xl font-bold text-white mb-2">The Independent Operator</h3>
+                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
+                            Kirana owners and small businesses battling massive quick-commerce margins. Use our <strong>Natural Language Rules Engine</strong> to instruct your AI to act as a relentless, autonomous back-office manager, without ever touching a spreadsheet.
+                        </p>
                     </div>
 
-                    {/* Enterprise */}
-                    <div className="glass-panel p-8 border-white/10 opacity-80 hover:opacity-100 transition-opacity flex flex-col">
-                        <h3 className="text-2xl font-bold text-white mb-2">Enterprise</h3>
-                        <p className="text-3xl font-light mb-6">$12<span className="text-lg text-white/40">/seat</span></p>
-                        <ul className="text-white/60 flex flex-col gap-4 mb-8 flex-1 text-sm font-light border-t border-white/10 pt-6">
-                            <li className="flex items-center gap-3"><Lock className="w-4 h-4 text-nexus-primary" /> Centralized Billing</li>
-                            <li className="flex items-center gap-3"><Database className="w-4 h-4" /> Logical ID Data Segregation</li>
-                            <li className="flex items-center gap-3"><Sparkles className="w-4 h-4" /> Group NLP Automation Rules</li>
-                        </ul>
-                        <button onClick={() => window.open('https://github.com/Jaswanth-K1210/Nexus-Mail.git')} className="glass-button w-full py-3 hover:bg-white/10">Fork Repository</button>
+                    {/* Archetype 3 */}
+                    <div className="glass-panel p-8 border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.05)] hover:border-purple-400/50 transition-colors flex flex-col group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 blur-[50px] rounded-full group-hover:bg-purple-500/20 transition-all duration-700"></div>
+                        <Lock className="w-8 h-8 text-purple-400 mb-4" />
+                        <h3 className="text-2xl font-bold text-white mb-2">The Execution-Driven Pro</h3>
+                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
+                            Institutional market participants where milliseconds and accuracy are life-or-death. A clinically dense UI with a strict <strong>RAG Institutional Engine</strong> to guarantee absolutely zero AI hallucinations.
+                        </p>
+                    </div>
+
+                    {/* Archetype 4 */}
+                    <div className="glass-panel p-8 border-teal-400/20 shadow-[0_0_20px_rgba(45,212,191,0.05)] hover:border-teal-400/50 transition-colors flex flex-col group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 blur-[50px] rounded-full group-hover:bg-teal-500/20 transition-all duration-700"></div>
+                        <Database className="w-8 h-8 text-teal-400 mb-4" />
+                        <h3 className="text-2xl font-bold text-white mb-2">The Field Workforce</h3>
+                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
+                            You operate in chaotic, noisy environments. Standard AI tech jargon relies on deep desktop literacy. We use extreme plain-language translation and a completely <strong>Bring-Your-Own-Key (BYOK)</strong> private database.
+                        </p>
                     </div>
                 </div>
             </section>
