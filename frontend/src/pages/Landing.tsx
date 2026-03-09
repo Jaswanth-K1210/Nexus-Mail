@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GhostCursor } from '../components/GhostCursor';
-import { Sparkles, Zap, Shield, ChevronRight, Github, Lock, Clock, Calendar, Database } from 'lucide-react';
+import { Sparkles, ChevronRight, Github } from 'lucide-react';
 
 export default function Landing() {
     const navigate = useNavigate();
@@ -95,95 +95,7 @@ export default function Landing() {
                 </motion.div>
             </section>
 
-            {/* Features Grid */}
-            <section className="relative z-10 max-w-7xl mx-auto px-6 py-24">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-5xl font-bold mb-4">Engineered for the Working Class</h2>
-                    <p className="text-white/50 text-lg max-w-2xl mx-auto">Built to shield you from cognitive overload, no matter your role. Always Free. Always Private.</p>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Feature 1 */}
-                    <div className="glass-panel p-8 hover:bg-white/[0.03] transition-colors border-white/5 shadow-glass group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-nexus-primary/10 blur-[50px] rounded-full group-hover:bg-nexus-primary/20 transition-all duration-700"></div>
-                        <Database className="w-10 h-10 text-nexus-primary mb-6" />
-                        <h3 className="text-xl font-semibold mb-3">Zero-Data Retention</h3>
-                        <p className="text-white/60 font-light leading-relaxed">
-                            We aggressively drop heavy HTML/Text payloads from the database the moment AI processing concludes. Keep the intelligence, drop the bulk. MongoDB 30-Day TTL automates data purging.
-                        </p>
-                    </div>
-
-                    {/* Feature 2 */}
-                    <div className="glass-panel p-8 hover:bg-white/[0.03] transition-colors border-white/5 shadow-glass group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] rounded-full group-hover:bg-blue-500/20 transition-all duration-700"></div>
-                        <Zap className="w-10 h-10 text-blue-400 mb-6" />
-                        <h3 className="text-xl font-semibold mb-3">Sub-Second AI (Groq)</h3>
-                        <p className="text-white/60 font-light leading-relaxed">
-                            Powered by Llama-3 8b via Groq. Features highly-optimized Plain-Text KV extraction to process incoming emails with under 1s latency at a fraction of standard JSON API token costs.
-                        </p>
-                    </div>
-
-                    {/* Feature 3 */}
-                    <div className="glass-panel p-8 hover:bg-white/[0.03] transition-colors border-white/5 shadow-glass group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-[50px] rounded-full group-hover:bg-purple-500/20 transition-all duration-700"></div>
-                        <Calendar className="w-10 h-10 text-purple-400 mb-6" />
-                        <h3 className="text-xl font-semibold mb-3">Mail Specialist Timeline</h3>
-                        <p className="text-white/60 font-light leading-relaxed">
-                            Stop missing deadlines. Nexus extracts action items directly from email bodies and merges them cohesively with a scrolling timeline of your upcoming Google Calendar meetings.
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            {/* The 4 Archetypes */}
-            <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-5xl font-bold mb-4">The 4 Archetypes</h2>
-                    <p className="text-white/50 text-lg max-w-2xl mx-auto">Because the working class is not a monolith. Silicon Valley builds one-size-fits-all AI. We build emotional ergonomics.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                    {/* Archetype 1 */}
-                    <div className="glass-panel p-8 border-nexus-primary/20 shadow-[0_0_20px_rgba(177,158,239,0.05)] hover:border-nexus-primary/50 transition-colors flex flex-col group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-nexus-primary/5 blur-[50px] rounded-full group-hover:bg-nexus-primary/20 transition-all duration-700"></div>
-                        <Shield className="w-8 h-8 text-nexus-primary mb-4" />
-                        <h3 className="text-2xl font-bold text-white mb-2">The Corporate Professional</h3>
-                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
-                            Surviving toxic office politics and massive context overload. Our <strong>Corporate Shield</strong> automatically adopts extremely deferential, culturally respectful tones for VIPs, protecting your sanity and creating a flawless paper-trail.
-                        </p>
-                    </div>
-
-                    {/* Archetype 2 */}
-                    <div className="glass-panel p-8 border-blue-400/20 shadow-[0_0_20px_rgba(96,165,250,0.05)] hover:border-blue-400/50 transition-colors flex flex-col group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 blur-[50px] rounded-full group-hover:bg-blue-500/20 transition-all duration-700"></div>
-                        <Zap className="w-8 h-8 text-blue-400 mb-4" />
-                        <h3 className="text-2xl font-bold text-white mb-2">The Independent Operator</h3>
-                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
-                            Kirana owners and small businesses battling massive quick-commerce margins. Use our <strong>Natural Language Rules Engine</strong> to instruct your AI to act as a relentless, autonomous back-office manager, without ever touching a spreadsheet.
-                        </p>
-                    </div>
-
-                    {/* Archetype 3 */}
-                    <div className="glass-panel p-8 border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.05)] hover:border-purple-400/50 transition-colors flex flex-col group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 blur-[50px] rounded-full group-hover:bg-purple-500/20 transition-all duration-700"></div>
-                        <Lock className="w-8 h-8 text-purple-400 mb-4" />
-                        <h3 className="text-2xl font-bold text-white mb-2">The Execution-Driven Pro</h3>
-                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
-                            Institutional market participants where milliseconds and accuracy are life-or-death. A clinically dense UI with a strict <strong>RAG Institutional Engine</strong> to guarantee absolutely zero AI hallucinations.
-                        </p>
-                    </div>
-
-                    {/* Archetype 4 */}
-                    <div className="glass-panel p-8 border-teal-400/20 shadow-[0_0_20px_rgba(45,212,191,0.05)] hover:border-teal-400/50 transition-colors flex flex-col group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 blur-[50px] rounded-full group-hover:bg-teal-500/20 transition-all duration-700"></div>
-                        <Database className="w-8 h-8 text-teal-400 mb-4" />
-                        <h3 className="text-2xl font-bold text-white mb-2">The Field Workforce</h3>
-                        <p className="text-white/60 mb-6 text-sm flex-1 leading-relaxed">
-                            You operate in chaotic, noisy environments. Standard AI tech jargon relies on deep desktop literacy. We use extreme plain-language translation and a completely <strong>Bring-Your-Own-Key (BYOK)</strong> private database.
-                        </p>
-                    </div>
-                </div>
-            </section>
 
             {/* Footer */}
             <footer className="relative z-10 w-full border-t border-white/10 py-10 mt-10 bg-black/40">
