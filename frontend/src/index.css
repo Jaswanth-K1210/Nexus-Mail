@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  body {
+    @apply bg-nexus-bg text-white antialiased overflow-x-hidden selection:bg-nexus-primary selection:text-black;
+  }
+}
+
+@layer components {
+
+  /* Apple-inspired Glassmorphism Panel */
+  .glass-panel {
+    @apply bg-nexus-card border border-nexus-border backdrop-blur-glass shadow-glass rounded-2xl transition-all duration-300;
+  }
+
+  .glass-panel:hover {
+    @apply bg-nexus-cardHover shadow-2xl;
+  }
+
+  /* Glass Button */
+  .glass-button {
+    @apply relative overflow-hidden bg-white/10 hover:bg-white/15 text-white font-medium py-3 px-6 rounded-full border border-white/10 backdrop-blur-md transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .glass-button-primary {
+    @apply bg-nexus-primary/90 hover:bg-nexus-primary text-black font-semibold border-transparent;
+    box-shadow: 0 0 20px rgba(177, 158, 239, 0.3);
+  }
+
+  .glass-button-primary:hover {
+    box-shadow: 0 0 30px rgba(177, 158, 239, 0.5);
+  }
+}
+
+/* Custom Scrollbar for sleekness */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

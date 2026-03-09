@@ -1,0 +1,12 @@
+\# Nexus Mail Backend
+# Run with: uvicorn app.main:app --reload --port 8000
+
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
