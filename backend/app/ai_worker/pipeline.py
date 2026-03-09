@@ -195,6 +195,7 @@ class ProcessingPipeline:
                 is_meeting=False,
                 tone_profile=tone_profile,
                 availability=None,
+                priority_score=classification.get("priority_score", 50)
             )
             results["reply"] = reply
             results["tasks_completed"].append("reply_draft")

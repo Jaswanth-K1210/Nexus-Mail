@@ -20,7 +20,8 @@ Respond in JSON format:
             "action": "<description of what needs to be done>",
             "priority": "<high | medium | low>",
             "deadline": "<deadline if mentioned, else null>",
-            "type": "<reply | review | approve | schedule | other>"
+            "type": "<reply | review | approve | schedule | other>",
+            "source_quote": "<exact sentence from the email where this action was requested>"
         }
     ],
     "requires_response": <true or false>,
@@ -39,7 +40,8 @@ Respond in JSON format:
             "action": "Respond to meeting invitation (Accept/Decline/Suggest alternative)",
             "priority": "high",
             "deadline": "<proposed meeting date>",
-            "type": "schedule"
+            "type": "schedule",
+            "source_quote": "Meeting Invitation Decision Required"
         }
     ],
     "requires_response": true,

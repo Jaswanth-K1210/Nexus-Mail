@@ -19,7 +19,7 @@ export function MeetingAlerts() {
         try {
             setLoading(true);
             const res = await api.get('/meetings/pending');
-            const data = res.data.alerts.map((a: any) => ({
+            const data = res.data.alerts.map((a: { id?: string; _id?: string; email_id: string; sender?: string; proposed_time: string; status: MeetingAlert['status'] }) => ({
                 id: a.id || a._id,
                 email_id: a.email_id,
                 sender: a.sender || 'Unknown Sender',

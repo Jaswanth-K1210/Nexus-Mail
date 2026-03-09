@@ -309,6 +309,7 @@ export const GhostCursor: React.FC<GhostCursorProps> = ({
         bloomPassRef.current = bloomPass;
         composer.addPass(bloomPass);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const filmPass = new ShaderPass(FilmGrainShader as any);
         filmPassRef.current = filmPass;
         composer.addPass(filmPass);
@@ -460,6 +461,7 @@ export const GhostCursor: React.FC<GhostCursorProps> = ({
                 renderer.domElement.parentElement.removeChild(renderer.domElement);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         trailLength,
         inertia,
@@ -507,6 +509,7 @@ export const GhostCursor: React.FC<GhostCursorProps> = ({
         if (!el) return;
 
         if (mixBlendMode) {
+            // eslint-disable-next-line react-hooks/immutability
             el.style.mixBlendMode = String(mixBlendMode);
         } else {
             el.style.removeProperty('mix-blend-mode');

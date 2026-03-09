@@ -5,8 +5,8 @@ import api from '../api';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A288E3', '#F94144', '#43AA8B', '#F3722C'];
 
 export function AnalyticsDashboard() {
-    const [categories, setCategories] = useState<any[]>([]);
-    const [volume, setVolume] = useState<any[]>([]);
+    const [categories, setCategories] = useState<{ name: string, value: number }[]>([]);
+    const [volume, setVolume] = useState<{ date: string, count: number }[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -17,12 +17,12 @@ export function AnalyticsDashboard() {
                     api.get('/analytics/volume?days=14')
                 ]);
 
-                setCategories(catRes.data.data.map((item: any) => ({
+                setCategories(catRes.data.data.map((item: { category?: string, count: number }) => ({
                     name: item.category || 'Uncategorized',
                     value: item.count
                 })));
 
-                setVolume(volRes.data.data.map((item: any) => ({
+                setVolume(volRes.data.data.map((item: { date?: string, _id?: string, count: number }) => ({
                     date: item.date || item._id,
                     count: item.count
                 })));

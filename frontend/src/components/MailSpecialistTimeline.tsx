@@ -18,6 +18,7 @@ export interface ActionItem {
     source_sender: string;
     source_subject: string;
     received_at: string;
+    source_quote?: string;
 }
 
 export function MailSpecialistTimeline() {
@@ -85,8 +86,19 @@ export function MailSpecialistTimeline() {
                         </div>
                         <div className="flex flex-col gap-2">
                             {actions.slice(0, 5).map((action, i) => (
-                                <div key={i} className="bg-gradient-to-r from-red-500/5 to-transparent border-l-2 border-rose-500/50 p-3 rounded-r-lg">
+                                <div key={i} className="bg-gradient-to-r from-red-500/5 to-transparent border-l-2 border-rose-500/50 p-3 rounded-r-lg group relative">
                                     <p className="text-sm text-white/90 leading-relaxed mb-2">{action.text}</p>
+
+                                    {/* Institutional Citation Engine (RAG) */}
+                                    {action.source_quote && (
+                                        <div className="mb-3 px-3 py-2 bg-black/40 border border-white/5 shadow-inner rounded text-xs text-white/50 italic italic relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-nexus-primary/50"></div>
+                                            <span className="font-semibold text-nexus-primary/70 not-italic mr-1">"</span>
+                                            {action.source_quote}
+                                            <span className="font-semibold text-nexus-primary/70 not-italic ml-1">"</span>
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center justify-between">
                                         <p className="text-[10px] text-white/40 flex items-center gap-1">
                                             <ChevronRight className="w-3 h-3" /> From: {action.source_sender}

@@ -10,7 +10,7 @@ import type { EmailThread } from '../components/MailThreadCard';
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const [profile, setProfile] = useState<any>(null);
+    const [profile, setProfile] = useState<{ unread: number, pendingDrafts: number, avgScore: number } | null>(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [inbox, setInbox] = useState<EmailThread[]>([]);
@@ -34,9 +34,9 @@ export default function Dashboard() {
 
             const drafts = draftsRes.data.drafts || [];
             const draftMap = new Map();
-            drafts.forEach((d: any) => draftMap.set(d.email_id, d));
+            drafts.forEach((d: { email_id: string, ai_confidence: number }) => draftMap.set(d.email_id, d));
 
-            const mappedEmails: EmailThread[] = (emailsRes.data.emails || []).map((e: any) => ({
+            const mappedEmails: EmailThread[] = (emailsRes.data.emails || []).map((e: { _id: string, sender_name?: string, sender_email?: string, subject?: string, snippet?: string, is_read?: boolean, priority_score?: number, category?: string }) => ({
                 id: e._id,
                 sender: e.sender_name || e.sender_email || "Unknown Sender",
                 subject: e.subject || "No Subject",

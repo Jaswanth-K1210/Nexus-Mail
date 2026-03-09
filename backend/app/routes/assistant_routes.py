@@ -38,13 +38,21 @@ async def get_specialist_timeline(user: dict = Depends(get_current_user)):
         action_items = []
         async for email in cursor:
             for item in email.get("action_items", []):
+                if isinstance(item, dict):
+                    action_text = item.get("action", str(item))
+                    source_quote = item.get("source_quote", "")
+                else:
+                    action_text = str(item)
+                    source_quote = ""
+
                 action_items.append({
                     "id": str(email["_id"]),
                     "type": "action_item",
-                    "text": item,
+                    "text": action_text,
                     "source_sender": email.get("sender_name", ""),
                     "source_subject": email.get("subject", ""),
-                    "received_at": email.get("received_at").isoformat() if hasattr(email.get("received_at"), 'isoformat') else email.get("received_at")
+                    "received_at": email.get("received_at").isoformat() if hasattr(email.get("received_at"), 'isoformat') else email.get("received_at"),
+                    "source_quote": source_quote
                 })
         
         return {

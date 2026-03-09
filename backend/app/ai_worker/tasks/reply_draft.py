@@ -14,15 +14,18 @@ REPLY_DRAFT_PROMPT = """You are an AI email reply assistant for Nexus Mail.
 
 Draft a professional reply to this email. Match the user's communication style based on their tone profile.
 
-Tone Profile (if available):
+Tone Profile:
 {tone_profile}
 
+Email Priority Score: {priority_score}/100
+
 Rules:
-- Match the formality level of the original email
-- Be concise — 2-4 sentences unless the context requires more
-- Address the key points raised in the email
-- Do not make commitments the user hasn't approved
-- Sound natural, not robotic
+- Match the formality level of the original email.
+- **Corporate Shield Protocol**: If the Priority Score is >= 80 (likely a boss, client, or VIP), automatically adopt an extremely deferential, culturally respectful tone (e.g., hyper-professional). Ensure the draft creates a flawless paper-trail that protects the user from blame or credit-theft without sounding defensive.
+- Be concise (2-4 sentences) unless shielding requires more context.
+- Address the key points raised in the email.
+- Do not make commitments the user hasn't approved.
+- Sound natural and empathetic.
 
 Respond in JSON format:
 {{
@@ -71,6 +74,7 @@ async def generate_reply_draft(
     is_meeting: bool = False,
     tone_profile: dict | None = None,
     availability: str | None = None,
+    priority_score: int = 50,
 ) -> dict:
     """
     Task 6: Generate reply draft(s).
@@ -92,7 +96,7 @@ SUBJECT: {subject}
 BODY:
 {body[:2000]}"""
     else:
-        prompt = REPLY_DRAFT_PROMPT.format(tone_profile=tone_str)
+        prompt = REPLY_DRAFT_PROMPT.format(tone_profile=tone_str, priority_score=priority_score)
         user_prompt = f"""Draft a reply to this email:
 
 FROM: {sender_name} <{sender}>

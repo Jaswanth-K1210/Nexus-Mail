@@ -40,9 +40,10 @@ export default function AuthCallback() {
                     setStatus('Authentication failed: Missing token in response.');
                 }
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Auth Exception:", err);
-                const errorDetail = err.response?.data?.detail || err.response?.data || err.message || JSON.stringify(err);
+                const errorObj = err as { response?: { data?: { detail?: string } }, message?: string };
+                const errorDetail = errorObj.response?.data?.detail || errorObj.message || JSON.stringify(err);
                 setStatus(`Authentication failed: ${errorDetail}`);
             }
         }
