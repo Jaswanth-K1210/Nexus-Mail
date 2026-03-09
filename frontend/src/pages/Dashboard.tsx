@@ -96,8 +96,8 @@ export default function Dashboard() {
 
             <header className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-nexus-primary to-blue-400 bg-clip-text text-transparent">Nexus Dashboard</h1>
-                    <p className="text-gray-400 text-sm mt-1">Backend Connection Established</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-nexus-primary to-blue-400 bg-clip-text text-transparent">Nexus Command Center</h1>
+                    <p className="text-gray-400 text-sm mt-1">The Architecture of Empathy is active.</p>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -124,29 +124,31 @@ export default function Dashboard() {
                 </div>
             </header>
 
-            {/* Top Stat Cards */}
+            {/* Top Stat Cards - Architecture of Empathy */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="glass-panel p-6">
+                <div className="glass-panel p-6 border-b-2 border-b-gray-500/30">
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-gray-400 font-medium">Total Unread</h3>
-                        <Mail className="text-nexus-primary w-5 h-5" />
+                        <h3 className="text-gray-400 font-medium">Inbox Noise (Unread)</h3>
+                        <Mail className="text-gray-400 w-5 h-5" />
                     </div>
-                    <p className="text-4xl font-bold">{profile?.unread || 0}</p>
+                    <p className="text-4xl font-bold text-white/90">{profile?.unread || 0}</p>
                 </div>
-                <div className="glass-panel p-6 border-nexus-primary/30 relative overflow-hidden">
+                <div className="glass-panel p-6 border-b-2 border-b-nexus-primary relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-16 h-16 bg-nexus-primary/10 blur-xl rounded-full"></div>
                     <div className="flex items-center justify-between mb-2 relative">
-                        <h3 className="text-nexus-primary font-medium">Pending AI Drafts</h3>
+                        <h3 className="text-nexus-primary font-medium tracking-wide">Corporate Shield Drafts</h3>
                         <CheckCircle2 className="text-nexus-primary w-5 h-5" />
                     </div>
-                    <p className="text-4xl font-bold relative">{profile?.pendingDrafts || 0}</p>
+                    <p className="text-4xl font-bold text-white relative">{profile?.pendingDrafts || 0}</p>
+                    <p className="text-[10px] text-nexus-primary/60 uppercase mt-2 font-semibold">Ready for Review</p>
                 </div>
-                <div className="glass-panel p-6">
+                <div className="glass-panel p-6 border-b-2 border-b-blue-400/50">
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-gray-400 font-medium">Priority Score Avg</h3>
+                        <h3 className="text-blue-300 font-medium">Cognitive Load Index</h3>
                         <TrendingUp className="text-blue-400 w-5 h-5" />
                     </div>
-                    <p className="text-4xl font-bold">{profile?.avgScore || 0}<span className="text-xl text-gray-500 font-medium"> / 100</span></p>
+                    <p className="text-4xl font-bold text-white/90">{profile?.avgScore || 0}<span className="text-xl text-gray-500 font-medium"> / 100</span></p>
+                    <p className="text-[10px] text-blue-400/50 uppercase mt-2 font-semibold">Average Priority Processing</p>
                 </div>
             </div>
 
