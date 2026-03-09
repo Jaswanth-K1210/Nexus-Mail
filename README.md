@@ -63,7 +63,7 @@ You can run Nexus Mail locally on your machine in under 5 minutes.
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/nexus-mail.git
+git clone https://github.com/Jaswanth-K1210/Nexus-Mail.git
 cd nexus-mail
 ```
 
@@ -93,9 +93,11 @@ Your completely private AI assistant is now running at `http://localhost:5173`.
 
 ---
 
-## :office: B2B SaaS & Enterprise
+## :office: The Architecture of Empathy & Open Source
 
-While Nexus Mail is fundamentally Open Source, we designed the database schema to handle multi-tenant SaaS scaling via Logical Isolation (Workspace IDs). If you are looking to fork this and host it commercially, check out our [SaaS Architecture Blueprint](SAAS_ARCHITECTURE.md) detailing Tiered Queues, Google Pub/Sub Webhooks, and automated TTL DB Indexes.
+Nexus Mail has formally pivoted away from a massive B2B SaaS architecture and is now built entirely as a **Free, Open-Source, Bring-Your-Own-Key (BYOK)** platform. We believe AI should fundamentally ease the cognitive overload of the working class, not act as a premium enterprise barrier.
+
+To understand why we abandoned the SaaS model in favor of a privacy-first, zero-data local database architecture for Corporate Employees, Independent Operators, and Field Workers, please read our [Open Source Manifesto](OPEN_SOURCE_MANIFESTO.md).
 
 ---
 
