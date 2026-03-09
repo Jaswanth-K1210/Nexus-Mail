@@ -7,7 +7,7 @@ export default function Landing() {
     const navigate = useNavigate();
 
     return (
-        <div className="relative min-h-screen bg-nexus-bg text-white overflow-x-hidden font-sans selection:bg-nexus-primary selection:text-black">
+        <div className="relative min-h-screen flex flex-col bg-nexus-bg text-white overflow-x-hidden font-sans selection:bg-nexus-primary selection:text-black">
             {/* Ghost Cursor running in the background */}
             <GhostCursor
                 color="#B19EEF"
@@ -46,7 +46,7 @@ export default function Landing() {
             </nav>
 
             {/* Hero Section */}
-            <section className="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-20 flex flex-col items-center text-center">
+            <section className="flex-1 relative z-10 w-full max-w-7xl mx-auto px-6 py-20 flex flex-col items-center justify-center text-center">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -98,7 +98,7 @@ export default function Landing() {
 
 
             {/* Footer */}
-            <footer className="relative z-10 w-full border-t border-white/10 py-10 mt-10 bg-black/40">
+            <footer className="relative z-10 w-full border-t border-white/10 py-10 mt-auto bg-black/40">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-2 opacity-50">
                         <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-white to-gray-500"></div>
