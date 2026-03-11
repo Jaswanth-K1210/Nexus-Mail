@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://via.placeholder.com/150x150/09090b/4f46e5?text=Nexus+Mail" alt="Nexus Mail Logo" width="120" height="120" />
+  <img src="[https://via.placeholder.com/150x150/09090b/4f46e5?text=Nexus+Mail](https://drive.google.com/file/d/1QnFoyLD6zyYfQQt5cKEO85Hn1SwBikjb/view?usp=sharing)" alt="Nexus Mail Logo" width="120" height="120" />
 
   # ⚡ Nexus Mail
 
