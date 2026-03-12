@@ -31,3 +31,4 @@ build/
 # Project specific
 backend/nexus_mail_test/
 backend/nexus_mail/
+startup.md
