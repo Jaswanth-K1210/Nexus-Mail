@@ -18,6 +18,9 @@ dist/
 build/
 .npm/
 
+# Gemini
+.gemini/
+
 # OS/Editor
 .DS_Store
 .idea/
