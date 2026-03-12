@@ -12,7 +12,9 @@ from dateutil.tz import gettz
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
-from app.ai_worker.ai_provider import ai_provider
+from bson import ObjectId
+
+from app.ai_worker.ai_provider import ai_provider, TaskType
 from app.core.database import get_database
 from app.core.config import get_settings
 
@@ -65,6 +67,7 @@ BODY:
             system_prompt=EXTRACT_MEETING_PROMPT,
             user_prompt=user_prompt,
             temperature=0.1,
+            task_type=TaskType.MEETING_INTELLIGENCE,
         )
         return result
     except Exception as e:
@@ -268,7 +271,7 @@ async def process_meeting_invitation(
 
     # Stage 5: Mark email as having a pending alert
     await db.emails.update_one(
-        {"_id": email_id},
+        {"_id": ObjectId(email_id)},
         {"$set": {"has_meeting_alert": True, "is_meeting_invitation": True}}
     )
 

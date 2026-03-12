@@ -60,7 +60,11 @@ async def google_callback(request: Request, body: AuthCallbackRequest):
 
 @router.post("/demo")
 async def demo_login():
-    """Bypasses Google OAuth and returns a local demo user session token."""
+    """Development-only: Bypasses Google OAuth for local testing."""
+    from app.core.config import get_settings
+    settings = get_settings()
+    if not settings.enable_demo_mode:
+        raise HTTPException(status_code=403, detail="Demo mode is disabled")
     try:
         return await auth_service.demo_login()
     except Exception as e:

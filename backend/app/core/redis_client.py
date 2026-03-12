@@ -5,6 +5,7 @@ Uses Redis locking to guarantee mutually exclusive execution.
 """
 
 from redis import asyncio as aioredis
+from redis.exceptions import LockNotOwnedError, LockError
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -81,6 +82,6 @@ async def redis_lock(lock_name: str, timeout: int = 60, blocking: bool = True) -
         if acquired:
             try:
                 await lock.release()
-            except Exception as e:
-                # Ignoring release errors (e.g. lock expired on its own)
+            except (LockNotOwnedError, LockError) as e:
+                # Lock expired on its own or was released by another process
                 logger.debug("Lock release suppressed", lock=lock_name, error=str(e))

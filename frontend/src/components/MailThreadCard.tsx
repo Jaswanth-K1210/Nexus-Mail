@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Brain } from 'lucide-react';
+import { Brain, ShieldAlert } from 'lucide-react';
 import clsx from 'clsx';
 
 export type EmailThread = {
@@ -12,32 +12,47 @@ export type EmailThread = {
     category: string;
     hasAiDraft: boolean;
     aiConfidence?: number;
+    suggestedAction?: string;
+    riskFlags?: string[];
 };
 
 interface MailThreadCardProps {
     thread: EmailThread;
     onClick: () => void;
+    isSelected?: boolean;
 }
 
-export function MailThreadCard({ thread, onClick }: MailThreadCardProps) {
+export function MailThreadCard({ thread, onClick, isSelected = false }: MailThreadCardProps) {
     // Determine color based on priority score
     const getScoreColor = (score: number) => {
         if (score >= 80) return 'text-nexus-primary bg-nexus-primary/10 border-nexus-primary/30';
-        if (score >= 50) return 'text-blue-400 bg-blue-400/10 border-blue-400/30';
-        return 'text-gray-400 bg-white/5 border-white/10';
+        if (score >= 50) return 'text-blue-500 bg-blue-500/10 border-blue-500/30';
+        return 'text-nexus-textMuted bg-nexus-card border-nexus-border';
+    };
+
+    const getActionColor = (action?: string) => {
+        switch (action) {
+            case 'ACTION REQUIRED': return 'text-red-400 border-red-500/20 bg-red-500/10';
+            case 'REVIEW ONLY': return 'text-amber-400 border-amber-500/20 bg-amber-500/10';
+            case 'LOW RELEVANCE': return 'text-gray-400 border-gray-500/20 bg-gray-500/10';
+            case 'AUTO-ARCHIVE': return 'text-nexus-textMuted border-nexus-border bg-black/40';
+            default: return 'hidden';
+        }
     };
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
+            whileHover={!isSelected ? { scale: 1.01, transition: { duration: 0.2 } } : undefined}
             onClick={onClick}
             className={clsx(
                 "cursor-pointer group relative p-4 rounded-xl transition-all duration-300",
-                "bg-white/5 border shadow-sm backdrop-blur-md",
-                thread.isUnread ? "border-white/20 bg-white/10" : "border-white/5",
-                "hover:bg-white/10 hover:border-nexus-primary/30 hover:shadow-glass"
+                "bg-nexus-card border shadow-sm backdrop-blur-md",
+                thread.isUnread ? "border-nexus-primary/30 bg-nexus-cardHover" : "border-nexus-border",
+                isSelected
+                    ? "border-nexus-primary shadow-[0_0_15px_rgba(177,158,239,0.3)] bg-nexus-primary/10 ring-1 ring-nexus-primary z-10"
+                    : "hover:bg-nexus-cardHover hover:border-nexus-primary/30 hover:shadow-glass"
             )}
         >
             {/* Read indicator glow */}
@@ -48,30 +63,41 @@ export function MailThreadCard({ thread, onClick }: MailThreadCardProps) {
             <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-3">
                     {/* Avatar Placeholder */}
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-nexus-card to-nexus-cardHover border border-white/10 flex items-center justify-center font-semibold text-sm shadow-inner text-white/80">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-nexus-card to-nexus-cardHover border border-nexus-border flex items-center justify-center font-semibold text-sm shadow-inner text-nexus-text">
                         {thread.sender.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <h4 className={clsx("font-medium text-sm", thread.isUnread ? "text-white" : "text-white/70")}>
+                        <h4 className={clsx("font-medium text-sm", thread.isUnread ? "text-nexus-text font-semibold" : "text-nexus-textMuted")}>
                             {thread.sender}
                         </h4>
-                        <p className={clsx("text-xs truncate max-w-[200px] sm:max-w-xs", thread.isUnread ? "text-white/90 font-medium" : "text-white/50")}>
+                        <p className={clsx("text-xs truncate max-w-[200px] sm:max-w-xs", thread.isUnread ? "text-nexus-text font-medium" : "text-nexus-textMuted opacity-80")}>
                             {thread.subject}
                         </p>
                     </div>
                 </div>
 
-                {/* Priority Badge */}
-                <div className={clsx("flex flex-col items-end gap-1.5")}>
-                    <div className={clsx("text-xs font-mono px-2 py-0.5 rounded-md border flex items-center gap-1", getScoreColor(thread.priorityScore))}>
-                        <TrendingUpIcon className="w-3 h-3" />
-                        {thread.priorityScore}
+                {/* Priority & Action Badges */}
+                <div className="flex flex-col items-end gap-1.5">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {thread.suggestedAction && thread.suggestedAction !== 'REVIEW ONLY' && (
+                            <div className={clsx("text-[9px] font-bold tracking-wider px-2 py-0.5 rounded-md border", getActionColor(thread.suggestedAction))}>
+                                {thread.suggestedAction}
+                            </div>
+                        )}
+                        {thread.riskFlags && thread.riskFlags.length > 0 && (
+                            <div className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-[0_0_10px_rgba(239,68,68,0.2)]" title="Security & Risk Warning">
+                                <ShieldAlert className="w-3 h-3 flex-shrink-0" /> RISK
+                            </div>
+                        )}
+                        <div className={clsx("text-xs font-mono px-2 py-0.5 rounded-md border flex items-center gap-1", getScoreColor(thread.priorityScore))}>
+                            <TrendingUpIcon className="w-3 h-3" />
+                            {thread.priorityScore}
+                        </div>
                     </div>
-
                 </div>
             </div>
 
-            <p className="text-white/40 text-xs line-clamp-2 pl-13 ml-13">
+            <p className="text-nexus-textMuted text-xs line-clamp-2 pl-13 ml-13">
                 {thread.snippet}
             </p>
 

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 
 from app.core.database import get_database
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 
 import structlog
 
@@ -156,6 +156,7 @@ DAYS WAITING: {age.get('days', 0)}
 
 The user ({user_name}) is following up on a previous conversation. Draft a short, polite nudge.""",
             temperature=0.5,
+            task_type=TaskType.REPLY_DRAFT,
         )
 
         return {

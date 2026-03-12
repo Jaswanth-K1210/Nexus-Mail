@@ -4,7 +4,7 @@ Extracts actionable items from emails.
 For meeting invitations, primary action is Accept/Decline decision.
 """
 
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -76,6 +76,7 @@ BODY:
             system_prompt=prompt,
             user_prompt=user_prompt,
             temperature=0.2,
+            task_type=TaskType.ACTION_EXTRACTION,
         )
 
         action_items = result.get("action_items", [])

@@ -71,7 +71,10 @@ async def push_to_user(user_id: str, event_type: str, data: dict) -> int:
 
     # Clean up dead connections
     for dq in dead_queues:
-        _connections[user_id].discard(dq)
+        try:
+            _connections[user_id].discard(dq)
+        except KeyError:
+            pass
 
     if delivered > 0:
         logger.debug(
@@ -120,9 +123,12 @@ async def event_stream(user_id: str, request: Request) -> AsyncGenerator[str, No
     except asyncio.CancelledError:
         pass
     finally:
-        _connections[user_id].discard(queue)
-        if not _connections[user_id]:
-            del _connections[user_id]
+        try:
+            _connections[user_id].discard(queue)
+            if not _connections[user_id]:
+                del _connections[user_id]
+        except KeyError:
+            pass
         logger.info("SSE client disconnected", user_id=user_id, total=get_connection_count())
 
 

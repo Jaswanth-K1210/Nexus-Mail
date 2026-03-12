@@ -30,12 +30,16 @@ export default function AuthCallback() {
 
                 if (response.data && response.data.access_token) {
                     localStorage.setItem('nexus_token', response.data.access_token);
-                    setStatus('Authentication successful! Loading Inbox...');
+                    setStatus('Authentication successful! Setting up...');
 
-                    // Redirect to the dashboard in a beat so user sees success state
-                    setTimeout(() => {
-                        navigate('/dashboard');
-                    }, 1000);
+                    // Check if user already completed onboarding
+                    try {
+                        const ctx = await api.get('/tone/context');
+                        const hasContext = ctx.data && ctx.data.role;
+                        navigate(hasContext ? '/dashboard' : '/onboarding');
+                    } catch {
+                        navigate('/onboarding');
+                    }
                 } else {
                     setStatus('Authentication failed: Missing token in response.');
                 }

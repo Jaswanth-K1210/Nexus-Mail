@@ -39,4 +39,10 @@ aiohttp==3.11.11
 # Utilities
 python-dotenv==1.0.1
 structlog==24.4.0
+apscheduler>=3.10.0
+slowapi>=0.1.9
 tenacity==9.0.0
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0

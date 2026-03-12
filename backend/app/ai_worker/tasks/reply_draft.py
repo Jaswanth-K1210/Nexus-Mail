@@ -5,7 +5,8 @@ For meeting invitations, pre-generates BOTH acceptance and decline drafts.
 Per v3.1 spec: both drafts stored, correct one used when user decides.
 """
 
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
+from app.ai_worker.utils import sanitize_for_prompt
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -26,6 +27,7 @@ Rules:
 - Address the key points raised in the email.
 - Do not make commitments the user hasn't approved.
 - Sound natural and empathetic.
+- If this is part of a conversation thread, maintain continuity with previous messages. Reference prior discussion points where relevant, and don't repeat what's already been said.
 
 Respond in JSON format:
 {{
@@ -75,11 +77,13 @@ async def generate_reply_draft(
     tone_profile: dict | None = None,
     availability: str | None = None,
     priority_score: int = 50,
+    thread_messages: list[dict] | None = None,
 ) -> dict:
     """
     Task 6: Generate reply draft(s).
     For meetings: generates both accept and decline drafts.
     For regular emails: generates a single contextual reply.
+    If thread_messages is provided, includes conversation history for context.
     """
     tone_str = str(tone_profile) if tone_profile else "No tone profile available — use a professional, friendly tone."
 
@@ -89,27 +93,43 @@ async def generate_reply_draft(
 
         user_prompt = f"""Generate acceptance and decline reply drafts for this meeting invitation:
 
-FROM: {sender_name} <{sender}>
-SUBJECT: {subject}
+FROM: {sanitize_for_prompt(sender_name, 200)} <{sanitize_for_prompt(sender, 200)}>
+SUBJECT: {sanitize_for_prompt(subject, 500)}
 {availability_context}
 
 BODY:
-{body[:2000]}"""
+{sanitize_for_prompt(body, 2000)}"""
     else:
         prompt = REPLY_DRAFT_PROMPT.format(tone_profile=tone_str, priority_score=priority_score)
+
+        # Build thread context if this is a conversation
+        thread_context = ""
+        if thread_messages and len(thread_messages) > 1:
+            thread_context = "\n--- CONVERSATION THREAD (oldest to newest) ---\n"
+            for i, msg in enumerate(thread_messages):
+                received = msg.get("received_at", "")
+                if hasattr(received, "isoformat"):
+                    received = received.isoformat()
+                thread_context += f"\n[Message {i + 1}] From: {msg['sender_name']} <{msg['sender_email']}>"
+                thread_context += f"\nDate: {received}"
+                thread_context += f"\n{msg['body']}\n"
+            thread_context += "\n--- END OF THREAD ---\n"
+            thread_context += "\nIMPORTANT: Reply to the LATEST message in the thread while maintaining context of the full conversation.\n"
+
         user_prompt = f"""Draft a reply to this email:
 
-FROM: {sender_name} <{sender}>
-SUBJECT: {subject}
-
-BODY:
-{body[:2000]}"""
+FROM: {sanitize_for_prompt(sender_name, 200)} <{sanitize_for_prompt(sender, 200)}>
+SUBJECT: {sanitize_for_prompt(subject, 500)}
+{thread_context}
+LATEST MESSAGE TO REPLY TO:
+{sanitize_for_prompt(body, 2000)}"""
 
     try:
         result = await ai_provider.complete_json(
             system_prompt=prompt,
             user_prompt=user_prompt,
             temperature=0.4,
+            task_type=TaskType.REPLY_DRAFT,
         )
 
         logger.info(

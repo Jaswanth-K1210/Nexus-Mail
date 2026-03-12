@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 import json
 
 from app.core.database import get_database
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 
 import structlog
 
@@ -93,7 +93,8 @@ class ThreadService:
                 system_prompt=THREAD_SUMMARY_PROMPT,
                 user_prompt=f"Email Thread:\n\n{thread_text}",
                 temperature=0.2,
-                max_tokens=1500
+                max_tokens=1500,
+                task_type=TaskType.SUMMARIZATION,
             )
         except Exception as e:
             logger.error("Failed to generate thread summary", thread_id=thread_id, error=str(e))

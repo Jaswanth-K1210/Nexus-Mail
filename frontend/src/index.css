@@ -5,8 +5,29 @@
 @layer base {
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+  :root {
+    --nexus-bg: #0A0A0A;
+    --nexus-card: rgba(255, 255, 255, 0.05);
+    --nexus-card-hover: rgba(255, 255, 255, 0.08);
+    --nexus-border: rgba(255, 255, 255, 0.1);
+    --nexus-text: #ffffff;
+    --nexus-text-muted: rgba(255, 255, 255, 0.6);
+    --nexus-shadow: rgba(0, 0, 0, 0.3);
+  }
+
+  .light-theme {
+    /* Apple-inspired Light Theme */
+    --nexus-bg: #F5F5F7;
+    --nexus-card: rgba(255, 255, 255, 0.6);
+    --nexus-card-hover: rgba(255, 255, 255, 0.9);
+    --nexus-border: rgba(0, 0, 0, 0.1);
+    --nexus-text: #1d1d1f;
+    --nexus-text-muted: rgba(29, 29, 31, 0.6);
+    --nexus-shadow: rgba(0, 0, 0, 0.05);
+  }
+
   body {
-    @apply bg-nexus-bg text-white antialiased overflow-x-hidden selection:bg-nexus-primary selection:text-black;
+    @apply bg-nexus-bg text-nexus-text antialiased overflow-x-hidden selection:bg-nexus-primary selection:text-black;
   }
 }
 
@@ -18,12 +39,16 @@
   }
 
   .glass-panel:hover {
-    @apply bg-nexus-cardHover shadow-2xl;
+    @apply bg-nexus-cardHover shadow-xl;
   }
 
   /* Glass Button */
   .glass-button {
-    @apply relative overflow-hidden bg-white/10 hover:bg-white/15 text-white font-medium py-3 px-6 rounded-full border border-white/10 backdrop-blur-md transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2;
+    @apply relative overflow-hidden bg-white/10 hover:bg-white/15 text-nexus-text font-medium py-3 px-6 rounded-full border border-nexus-border backdrop-blur-md transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .light-theme .glass-button {
+    @apply bg-black/5 hover:bg-black/10 text-nexus-text border-black/10;
   }
 
   .glass-button-primary {
@@ -47,10 +72,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(177, 158, 239, 0.2);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(177, 158, 239, 0.5);
 }

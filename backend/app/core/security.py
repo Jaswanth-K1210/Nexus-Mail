@@ -26,7 +26,7 @@ def _get_aes_key() -> bytes:
     settings = get_settings()
     key = settings.encryption_key
     if not key:
-        raise ValueError("ENCRYPTION_KEY not set in environment")
+        raise ValueError("ENCRYPTION_KEY not set in environment. Generate a 32-byte key with: python -c 'import base64; print(base64.b64encode(__import__(\"os\").urandom(32)).decode())'")
     return base64.b64decode(key)
 
 

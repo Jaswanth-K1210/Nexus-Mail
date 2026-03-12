@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 from app.core.database import get_database
 from app.services.auth_service import AuthService
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 
 import structlog
 
@@ -28,6 +28,7 @@ TONE_ANALYSIS_PROMPT = """You are a linguistic style analyzer. Analyze the provi
 You MUST return valid JSON with these fields:
 
 {
+    "professional_persona": "<2-sentence description of the user's likely job role, industry, and what emails they probably consider important based on what they write and to whom>",
     "formality_level": "casual" | "semi_formal" | "formal" | "very_formal",
     "avg_sentence_length": "short" | "medium" | "long",
     "greeting_style": "<how they typically start emails, e.g. 'Hey', 'Hi there', 'Dear'>",
@@ -114,12 +115,14 @@ class ToneLearningService:
             system_prompt=TONE_ANALYSIS_PROMPT,
             user_prompt=f"Analyze these {len(email_samples)} emails written by the same person:\n\n{combined}",
             temperature=0.2,
+            task_type=TaskType.TONE_LEARNING,
         )
 
         # Store the learned profile
+        from bson import ObjectId
         db = get_database()
         await db.users.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {
                 "$set": {
                     "tone_profile": tone_profile,
@@ -145,9 +148,10 @@ class ToneLearningService:
 
     async def get_tone_profile(self, user_id: str) -> dict | None:
         """Get the user's current tone profile."""
+        from bson import ObjectId
         db = get_database()
         user = await db.users.find_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"tone_profile": 1, "tone_learned_at": 1, "tone_email_count": 1},
         )
         if not user or not user.get("tone_profile"):
@@ -164,9 +168,10 @@ class ToneLearningService:
         Check if the tone profile is stale and refresh if needed.
         Called automatically during email sync.
         """
+        from bson import ObjectId
         db = get_database()
         user = await db.users.find_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"tone_learned_at": 1},
         )
 

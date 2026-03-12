@@ -3,7 +3,7 @@ Nexus Mail — Task 3: Email Summarization
 Runs for every email. For meeting invitations, focuses on sender context.
 """
 
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -67,6 +67,7 @@ BODY:
             system_prompt=prompt,
             user_prompt=user_prompt,
             temperature=0.3,
+            task_type=TaskType.SUMMARIZATION,
         )
 
         logger.info("Email summarized", topic=result.get("key_topic", ""))

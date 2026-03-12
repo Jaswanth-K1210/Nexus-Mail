@@ -277,8 +277,9 @@ class AuthService:
 
         # Refresh if expired
         if credentials.expired and credentials.refresh_token:
+            import asyncio
             from google.auth.transport.requests import Request
-            credentials.refresh(Request())
+            await asyncio.to_thread(credentials.refresh, Request())
 
             # Store refreshed tokens
             await db.google_tokens.update_one(
@@ -297,9 +298,10 @@ class AuthService:
 
     async def get_consent_status(self, user_id: str) -> dict:
         """Check if user has valid consent record."""
+        from bson import ObjectId
         db = get_database()
         user = await db.users.find_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"consent": 1, "calendar_connected": 1}
         )
         if not user:

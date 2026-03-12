@@ -14,7 +14,7 @@ from app.core.database import get_database
 from app.core.config import get_settings
 from app.services.auth_service import AuthService
 from app.services.gmail_service import GmailService
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 
 import structlog
 
@@ -367,6 +367,7 @@ class MeetingService:
             system_prompt=f"You are an email reply assistant. Write in this style: {tone_str}. Write ONLY the reply text, no JSON.",
             user_prompt=f"Write a brief, warm acceptance reply to {sender_name} for a meeting on {proposed_time.strftime('%A, %B %d at %I:%M %p')}. Subject: {subject}. 2-3 sentences max.",
             temperature=0.4,
+            task_type=TaskType.REPLY_DRAFT,
         )
         return result.strip()
 
@@ -381,6 +382,7 @@ class MeetingService:
             system_prompt=f"You are an email reply assistant. Write in this style: {tone_str}. Write ONLY the reply text, no JSON.",
             user_prompt=f"Write a polite, brief decline reply to {sender_name} for a meeting invitation.{reason_context} Be gracious. 2-3 sentences max.",
             temperature=0.4,
+            task_type=TaskType.REPLY_DRAFT,
         )
         return result.strip()
 
@@ -394,6 +396,7 @@ class MeetingService:
             system_prompt=f"You are an email reply assistant. Write in this style: {tone_str}. Write ONLY the reply text, no JSON.",
             user_prompt=f"Write a brief counter-proposal reply to {sender_name}. The proposed time doesn't work. Suggest {suggested_time.strftime('%A, %B %d at %I:%M %p')} instead. 2-3 sentences max.",
             temperature=0.4,
+            task_type=TaskType.REPLY_DRAFT,
         )
         return result.strip()
 

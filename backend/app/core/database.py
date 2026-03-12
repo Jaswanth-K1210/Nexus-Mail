@@ -45,9 +45,11 @@ async def _create_indexes() -> None:
     await db.emails.create_index([("user_id", 1), ("category", 1), ("received_at", -1)])
     await db.emails.create_index([("user_id", 1), ("is_meeting_invitation", 1)])
     
-    # Zero-Data SaaS Retention Protocol: Purge entirely from MongoDB after 30 days.
-    # Users can always still search past 30 days directly in the Gmail UI, but this saves 90% DB costs.
-    await db.emails.create_index("received_at", expireAfterSeconds=30 * 24 * 60 * 60)
+    # Zero-Data SaaS Retention Protocol: Purge emails after configured days.
+    # Set email_retention_days=0 to disable auto-deletion.
+    settings = get_settings()
+    if settings.email_retention_days > 0:
+        await db.emails.create_index("received_at", expireAfterSeconds=settings.email_retention_days * 24 * 60 * 60)
 
     # google_tokens collection (renamed from gmail_tokens per v3.1 spec)
     await db.google_tokens.create_index("user_id", unique=True)

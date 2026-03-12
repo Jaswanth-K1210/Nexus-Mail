@@ -8,10 +8,12 @@ export default {
     extend: {
       colors: {
         nexus: {
-          bg: '#0A0A0A',
-          card: 'rgba(255, 255, 255, 0.05)',
-          cardHover: 'rgba(255, 255, 255, 0.08)',
-          border: 'rgba(255, 255, 255, 0.1)',
+          bg: 'var(--nexus-bg)',
+          card: 'var(--nexus-card)',
+          cardHover: 'var(--nexus-card-hover)',
+          border: 'var(--nexus-border)',
+          text: 'var(--nexus-text)',
+          textMuted: 'var(--nexus-text-muted)',
           primary: '#B19EEF',
           secondary: '#826EEA'
         }
@@ -20,7 +22,7 @@ export default {
         sans: ['Inter', 'SF Pro Display', 'sans-serif'],
       },
       boxShadow: {
-        glass: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+        glass: '0 8px 32px 0 var(--nexus-shadow)',
       },
       backdropBlur: {
         glass: '16px',

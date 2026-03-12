@@ -21,19 +21,38 @@ export interface ActionItem {
     source_quote?: string;
 }
 
-export function MailSpecialistTimeline() {
+export interface KeyConversation {
+    _id: string; // sender email
+    count: number;
+}
+
+export interface ReplyStats {
+    needs_reply: number;
+    awaiting_reply: number;
+    overdue: number;
+}
+
+export function MailSpecialistTimeline({ fullWidth = false }: { fullWidth?: boolean }) {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [actions, setActions] = useState<ActionItem[]>([]);
+    const [topSenders, setTopSenders] = useState<KeyConversation[]>([]);
+    const [replyStats, setReplyStats] = useState<ReplyStats | null>(null);
     const [loading, setLoading] = useState(true);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/assistant/timeline');
-            setEvents(res.data.calendar_events || []);
-            setActions(res.data.action_items || []);
+            const [timelineRes, sendersRes, statsRes] = await Promise.all([
+                api.get('/assistant/timeline'),
+                api.get('/analytics/top-senders'),
+                api.get('/replies/stats')
+            ]);
+            setEvents(timelineRes.data.calendar_events || []);
+            setActions(timelineRes.data.action_items || []);
+            setTopSenders(sendersRes.data.data?.slice(0, 4) || []);
+            setReplyStats(statsRes.data || null);
         } catch (error) {
-            console.error("Failed to fetch specialist timeline", error);
+            console.error("Failed to fetch command center data", error);
         } finally {
             setLoading(false);
         }
@@ -47,7 +66,7 @@ export function MailSpecialistTimeline() {
 
     if (loading && events.length === 0 && actions.length === 0) {
         return (
-            <div className="glass-panel p-6 flex flex-col items-center justify-center h-full w-full xl:w-[400px]">
+            <div className={`glass-panel p-6 flex flex-col items-center justify-center h-full ${fullWidth ? 'w-full' : 'w-full xl:w-[400px]'}`}>
                 <Loader2 className="w-6 h-6 animate-spin text-nexus-primary" />
                 <p className="mt-4 text-white/50 text-sm">Reviewing your upcoming schedule & deadlines...</p>
             </div>
@@ -67,15 +86,31 @@ export function MailSpecialistTimeline() {
     });
 
     return (
-        <div className="glass-panel w-full xl:w-[450px] h-full flex flex-col overflow-hidden relative shadow-[0_0_15px_rgba(177,158,239,0.05)] border-nexus-primary/10">
+        <div className={`glass-panel h-full flex flex-col overflow-hidden relative shadow-[0_0_15px_rgba(177,158,239,0.05)] border-nexus-primary/10 ${fullWidth ? 'w-full' : 'w-full xl:w-[450px]'}`}>
             <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-black/40 backdrop-blur-xl z-10">
                 <h3 className="font-semibold text-white/90 flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-nexus-primary" />
-                    Mail Specialist Timeline
+                    Action Center & Timeline
                 </h3>
             </div>
 
-            <div className="p-4 overflow-y-auto custom-scrollbar flex flex-col gap-6 flex-1 pb-20">
+            <div className={`p-4 overflow-y-auto custom-scrollbar flex flex-col gap-6 flex-1 pb-20 ${fullWidth ? 'max-w-4xl mx-auto w-full' : ''}`}>
+
+                {/* Section 0: Follow-Up Automation */}
+                {replyStats && (replyStats.needs_reply > 0 || replyStats.awaiting_reply > 0 || replyStats.overdue > 0) && (
+                    <div className="mb-2 bg-gradient-to-r from-amber-500/10 to-transparent border-l-2 border-amber-500/50 p-3 rounded-r-lg">
+                        <div className="flex items-center justify-between mb-2 px-1">
+                            <h4 className="font-medium text-amber-300 text-sm tracking-wide uppercase flex items-center gap-2">
+                                <Clock className="w-4 h-4" /> Follow-Ups
+                            </h4>
+                        </div>
+                        <div className="flex justify-between text-xs text-white/70 px-1">
+                            {replyStats.needs_reply > 0 && <span>You need to reply: <strong className="text-white">{replyStats.needs_reply}</strong></span>}
+                            {replyStats.awaiting_reply > 0 && <span>Awaiting: <strong className="text-white">{replyStats.awaiting_reply}</strong></span>}
+                            {replyStats.overdue > 0 && <span className="text-rose-400 font-medium">Overdue: {replyStats.overdue}</span>}
+                        </div>
+                    </div>
+                )}
 
                 {/* Section 1: Deadlines and Action Items */}
                 {actions.length > 0 && (
@@ -107,6 +142,25 @@ export function MailSpecialistTimeline() {
                                             Resolve
                                         </button>
                                     </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Key Conversations */}
+                {topSenders.length > 0 && (
+                    <div className="mb-2">
+                        <div className="flex items-center gap-2 mb-3 px-1">
+                            <svg className="w-4 h-4 text-nexus-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <h4 className="font-medium text-nexus-text text-sm tracking-wide uppercase">Key Conversations</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            {topSenders.map(sender => (
+                                <div key={sender._id || Math.random()} className="p-2 border border-nexus-border bg-nexus-cardHover rounded-md text-xs truncate" title={sender._id || "Unknown"}>
+                                    {(sender._id || "Unknown").split('@')[0]}
                                 </div>
                             ))}
                         </div>

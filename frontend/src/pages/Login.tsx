@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { GhostCursor } from '../components/GhostCursor';
 import { Mail, Sparkles, Zap, Shield, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -18,7 +19,7 @@ export default function Login() {
             }
         } catch (err) {
             console.error('Failed to get Auth URL', err);
-            alert('Failed to connect to backend.');
+            toast.error('Failed to connect to backend.');
         } finally {
             setIsLoading(false);
         }
@@ -34,7 +35,8 @@ export default function Login() {
             }
         } catch (err) {
             console.error('Demo Login Failed', err);
-            alert('Demo Login failed.');
+            toast.error('Demo login failed.');
+        } finally {
             setIsLoading(false);
         }
     };

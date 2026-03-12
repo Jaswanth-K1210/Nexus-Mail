@@ -6,11 +6,13 @@ Fetches emails from Gmail API and stores them in MongoDB for AI processing.
 import base64
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from bson import ObjectId
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
 from app.core.database import get_database
+from app.core.config import get_settings
 from app.services.auth_service import AuthService
 
 import structlog
@@ -45,20 +47,20 @@ class GmailService:
             db = get_database()
 
 
-        # Get the last successfully processed historyId for this user
-        user = await db.users.find_one(
-            {"_id": user_id}, {"last_history_id": 1, "last_sync": 1}
-        )
-        last_history_id = user.get("last_history_id") if user else None
-
-        if last_history_id:
-            # ─── INCREMENTAL SYNC via history.list() ───
-            return await self._incremental_sync(
-                service, db, user_id, last_history_id, max_results
+            # Get the last successfully processed historyId for this user
+            user = await db.users.find_one(
+                {"_id": ObjectId(user_id)}, {"last_history_id": 1, "last_sync": 1}
             )
-        else:
-            # ─── INITIAL FULL SYNC (first time only) ───
-            return await self._full_sync(service, db, user_id, max_results)
+            last_history_id = user.get("last_history_id") if user else None
+
+            if last_history_id:
+                # ─── INCREMENTAL SYNC via history.list() ───
+                return await self._incremental_sync(
+                    service, db, user_id, last_history_id, max_results
+                )
+            else:
+                # ─── INITIAL FULL SYNC (first time only) ───
+                return await self._full_sync(service, db, user_id, max_results)
 
     async def _full_sync(
         self, service, db, user_id: str, max_results: int
@@ -81,7 +83,7 @@ class GmailService:
         if not messages:
             # Still store the historyId so incremental sync works next time
             await db.users.update_one(
-                {"_id": user_id},
+                {"_id": ObjectId(user_id)},
                 {"$set": {
                     "last_history_id": current_history_id,
                     "last_sync": datetime.now(timezone.utc),
@@ -110,7 +112,7 @@ class GmailService:
 
         # Store the historyId cursor for future incremental syncs
         await db.users.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"$set": {
                 "last_history_id": current_history_id,
                 "last_sync": datetime.now(timezone.utc),
@@ -159,7 +161,7 @@ class GmailService:
                 )
                 # Clear the stale cursor
                 await db.users.update_one(
-                    {"_id": user_id},
+                    {"_id": ObjectId(user_id)},
                     {"$unset": {"last_history_id": ""}},
                 )
                 return await self._full_sync(service, db, user_id, max_results)
@@ -171,7 +173,7 @@ class GmailService:
         if not history_records:
             # No changes since last sync — just update the cursor
             await db.users.update_one(
-                {"_id": user_id},
+                {"_id": ObjectId(user_id)},
                 {"$set": {
                     "last_history_id": new_history_id,
                     "last_sync": datetime.now(timezone.utc),
@@ -214,7 +216,7 @@ class GmailService:
 
         # Update the cursor to the new historyId
         await db.users.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"$set": {
                 "last_history_id": new_history_id,
                 "last_sync": datetime.now(timezone.utc),
@@ -340,12 +342,31 @@ class GmailService:
         thread_id: str | None = None,
         in_reply_to: str | None = None,
     ) -> dict:
-        """Send an email reply via Gmail API."""
+        """Send an email reply via Gmail API with proper threading headers."""
         credentials = await self.auth_service.get_user_credentials(user_id)
         if not credentials:
             raise ValueError("No Google credentials found for user")
 
         service = build("gmail", "v1", credentials=credentials)
+
+        # If we have a thread_id but no in_reply_to, fetch the last message's
+        # Message-ID header so Gmail threads the reply correctly
+        if thread_id and not in_reply_to:
+            try:
+                thread_data = service.users().threads().get(
+                    userId="me", id=thread_id, format="metadata",
+                    metadataHeaders=["Message-ID", "References"]
+                ).execute()
+                thread_msgs = thread_data.get("messages", [])
+                if thread_msgs:
+                    last_msg = thread_msgs[-1]
+                    headers = {
+                        h["name"].lower(): h["value"]
+                        for h in last_msg.get("payload", {}).get("headers", [])
+                    }
+                    in_reply_to = headers.get("message-id")
+            except Exception as e:
+                logger.warning("Failed to fetch thread headers", error=str(e))
 
         # Construct the email message
         import email.mime.text
@@ -374,7 +395,7 @@ class GmailService:
         """Get the current Gmail sync status for the user."""
         db = get_database()
 
-        user = await db.users.find_one({"_id": user_id})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         total_emails = await db.emails.count_documents({"user_id": user_id})
 
         # Count processed today
@@ -415,6 +436,6 @@ class GmailService:
             "last_sync": user.get("last_sync", "").isoformat() if user and user.get("last_sync") else None,
             "emails_synced": total_emails,
             "processed_today": processed_today,
-            "ai_provider": get_settings().ai_provider if hasattr(get_settings, '__call__') else "groq",
+            "ai_provider": get_settings().ai_provider,
             "pending_alerts": pending_alerts,
         }

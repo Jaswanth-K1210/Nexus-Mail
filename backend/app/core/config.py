@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # --- MongoDB ---
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "nexus_mail"
+    email_retention_days: int = 30  # Auto-delete emails after N days (0 to disable)
 
     # --- Redis ---
     redis_url: str = "redis://localhost:6379/0"
@@ -53,8 +54,22 @@ class Settings(BaseSettings):
     # --- AI Providers ---
     groq_api_key: str = ""
     openrouter_api_key: str = ""
-    ai_provider: str = "groq"  # "groq" | "openrouter"
+    ai_provider: str = "groq"  # Default provider: "groq" | "openai"
     ai_model: str = "llama-3.3-70b-versatile"
+
+    # --- Ollama (cloud or local) ---
+    # Point this at any OpenAI-compatible endpoint:
+    #   Local Ollama:     http://localhost:11434/v1
+    #   Cloud VM Ollama:  https://ollama.yourserver.com/v1
+    #   Together.ai:      https://api.together.xyz/v1
+    #   Fireworks.ai:     https://api.fireworks.ai/inference/v1
+    ollama_base_url: str = "http://localhost:11434/v1"
+    ollama_api_key: str = "ollama"  # Ollama ignores this; Together/Fireworks need a real key
+    ollama_model: str = "llama3.2:3b"
+    enable_ollama: bool = False
+
+    # --- Smart Routing ---
+    ai_routing_enabled: bool = False  # When True, routes tasks to optimal provider
 
     # --- Meeting Intelligence ---
     meeting_detection_confidence_threshold: float = 0.75
@@ -67,7 +82,10 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(..., min_length=32)
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
-    encryption_key: str = ""  # AES-256 key, base64 encoded
+    encryption_key: str = ""  # AES-256 key, base64 encoded (REQUIRED for production)
+
+    # --- Demo Mode ---
+    enable_demo_mode: bool = True  # Set False in production
 
     # --- CORS ---
     cors_origins: str = "http://localhost:5173,http://localhost:3000"

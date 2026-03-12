@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 
 from app.core.database import get_database
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 
 import structlog
 
@@ -93,6 +93,7 @@ BODY:
                 system_prompt=COLD_EMAIL_DETECTION_PROMPT,
                 user_prompt=user_prompt,
                 temperature=0.1,
+                task_type=TaskType.COLD_EMAIL,
             )
 
             return result

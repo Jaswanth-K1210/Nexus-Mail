@@ -14,7 +14,7 @@ from bson import ObjectId
 from typing import Optional
 
 from app.core.database import get_database
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 
 import structlog
 
@@ -93,6 +93,7 @@ class RulesEngine:
             system_prompt=RULE_COMPILER_PROMPT,
             user_prompt=f"Compile this email rule:\n\n{rule_text}",
             temperature=0.1,
+            task_type=TaskType.RULE_MATCHING,
         )
 
         rule_doc = {
@@ -166,6 +167,7 @@ class RulesEngine:
                 system_prompt=RULE_COMPILER_PROMPT,
                 user_prompt=f"Compile this email rule:\n\n{rule_text}",
                 temperature=0.1,
+                task_type=TaskType.RULE_MATCHING,
             )
             update_data["rule_text"] = rule_text
             update_data["description"] = compiled.get("description", rule_text)
@@ -336,12 +338,13 @@ class RulesEngine:
                     # Generate a draft reply based on the rule's template
                     from app.services.draft_service import DraftService
                     draft_svc = DraftService()
-                    from app.ai_worker.ai_provider import ai_provider as ai
+                    from app.ai_worker.ai_provider import ai_provider as ai, TaskType as TT
 
                     reply_text = await ai.complete(
                         system_prompt="Write a brief email reply based on the template instruction. Write ONLY the reply text.",
                         user_prompt=f"Template: {action.get('template', 'polite acknowledgment')}\nOriginal email subject: {email_doc.get('subject', '')}\nOriginal sender: {email_doc.get('sender_name', '')}",
                         temperature=0.4,
+                        task_type=TT.REPLY_DRAFT,
                     )
 
                     await draft_svc.create_draft(
@@ -439,6 +442,7 @@ class RulesEngine:
                     f"Email body (first 500 chars): {email_doc.get('body_text', '')[:500]}"
                 ),
                 temperature=0.1,
+                task_type=TaskType.RULE_MATCHING,
             )
             return {
                 "matches": result.get("matches", False),

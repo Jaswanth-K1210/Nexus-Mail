@@ -150,7 +150,7 @@ class DraftService:
 
         async for draft in cursor:
             drafts.append({
-                "id": str(draft["_id"]),
+                "_id": str(draft["_id"]),
                 "email_id": draft.get("email_id"),
                 "draft_body": draft.get("draft_body", ""),
                 "draft_type": draft.get("draft_type", "reply"),
@@ -158,7 +158,9 @@ class DraftService:
                 "recipient_email": draft.get("recipient_email", ""),
                 "recipient_name": draft.get("recipient_name", ""),
                 "subject": draft.get("subject", ""),
+                "thread_id": draft.get("thread_id"),
                 "source": draft.get("source", "pipeline"),
+                "status": draft.get("status", "pending"),
                 "created_at": draft["created_at"].isoformat(),
             })
 

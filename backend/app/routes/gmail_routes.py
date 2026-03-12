@@ -124,3 +124,29 @@ async def get_email(email_id: str, user: dict = Depends(get_current_user)):
 
     email["_id"] = str(email["_id"])
     return email
+
+
+@router.get("/threads/{thread_id}")
+async def get_thread(thread_id: str, user: dict = Depends(get_current_user)):
+    """Get all emails in a thread, ordered oldest to newest."""
+    from app.core.database import get_database
+
+    db = get_database()
+
+    cursor = db.emails.find(
+        {"user_id": user["user_id"], "thread_id": thread_id},
+        {"body_html": 0},
+    ).sort("received_at", 1)
+
+    messages = []
+    async for msg in cursor:
+        msg["_id"] = str(msg["_id"])
+        messages.append(msg)
+
+    if not messages:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Thread not found",
+        )
+
+    return {"thread_id": thread_id, "messages": messages, "count": len(messages)}

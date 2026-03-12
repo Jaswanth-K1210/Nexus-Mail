@@ -4,7 +4,7 @@ Checks for phishing indicators, suspicious links, and security risks.
 For meeting invitations, focuses on meeting link validation.
 """
 
-from app.ai_worker.ai_provider import ai_provider
+from app.ai_worker.ai_provider import ai_provider, TaskType
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -67,6 +67,7 @@ BODY:
             system_prompt=RISK_DETECT_PROMPT,
             user_prompt=user_prompt,
             temperature=0.1,
+            task_type=TaskType.RISK_DETECTION,
         )
 
         risk_flags = result.get("risk_flags", [])
