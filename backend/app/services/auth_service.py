@@ -134,6 +134,7 @@ class AuthService:
         return {
             "access_token": access_token,
             "token_type": "bearer",
+            "is_new_user": user.get("is_new_user", False),
             "user": {
                 "id": str(user["_id"]),
                 "email": user["email"],
@@ -208,6 +209,9 @@ class AuthService:
             "consent.user_agent": user_agent,
         }
 
+        existing = await db.users.find_one({"google_id": user_info["id"]})
+        is_new_user = existing is None
+
         result = await db.users.find_one_and_update(
             {"google_id": user_info["id"]},
             {
@@ -217,6 +221,7 @@ class AuthService:
             upsert=True,
             return_document=True,
         )
+        result["is_new_user"] = is_new_user
         return result
 
     async def _store_tokens(
