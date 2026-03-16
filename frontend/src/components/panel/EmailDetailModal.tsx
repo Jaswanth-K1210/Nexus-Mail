@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Archive, CornerUpLeft, User, Calendar, Loader2, Brain, AlertTriangle, ShieldAlert, MessageSquare, Sparkles, Briefcase, FileText } from 'lucide-react';
+import { X, Send, Archive, CornerUpLeft, User, Calendar, Loader2, Brain, AlertTriangle, ShieldAlert, MessageSquare, RefreshCw, ClipboardCheck, FileSignature, Banknote, FileCheck, Bell } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../../api';
 
@@ -19,6 +19,8 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
     const [generating, setGenerating] = useState(false);
     const [refining, setRefining] = useState<string | null>(null); // which style is refining
     const [showThread, setShowThread] = useState(false);
+    const [showReclassify, setShowReclassify] = useState(false);
+    const [reclassifying, setReclassifying] = useState(false);
 
     useEffect(() => {
         if (isOpen && emailId) {
@@ -93,12 +95,19 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
         if (!emailId) return;
         try {
             setGenerating(true);
+            // Delete existing pending draft so regenerate works
+            if (draft?._id) {
+                try { await api.post(`/drafts/${draft._id}/reject`); } catch { /* ignore */ }
+                setDraft(null);
+                setDraftBody('');
+            }
             const res = await api.post(`/drafts/generate/${emailId}`);
             setDraft(res.data);
             setDraftBody(res.data.draft_body || '');
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to generate draft", err);
-            alert("Failed to generate draft.");
+            const detail = err?.response?.data?.detail || "Failed to generate draft. Please try again.";
+            alert(detail);
         } finally {
             setGenerating(false);
         }
@@ -119,8 +128,55 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
         }
     };
 
+    const handleReclassify = async (newCategory: string) => {
+        if (!emailId) return;
+        try {
+            setReclassifying(true);
+            await api.put(`/gmail/emails/${emailId}/category`, { category: newCategory });
+            setEmail((prev: any) => prev ? { ...prev, category: newCategory } : prev);
+            setShowReclassify(false);
+        } catch (err) {
+            console.error("Failed to reclassify", err);
+        } finally {
+            setReclassifying(false);
+        }
+    };
+
     // Get the summary — check both field names for backward compatibility
     const summaryText = email?.ai_summary || email?.summary || null;
+
+    // Hide "Draft a Reply" ONLY for spam and promotional categories.
+    const NO_DRAFT_CATEGORIES = ['spam', 'promotional', 'newsletter'];
+    const emailCategory = (email?.category || '').toLowerCase().trim();
+    const showDraftButton = !NO_DRAFT_CATEGORIES.includes(emailCategory);
+
+    // ── Contextual Action Button config ────────────────────────────────────
+    const ACTION_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; border: string }> = {
+        'ACTION REQUIRED': { label: 'Action Required', icon: ClipboardCheck, color: 'text-rose-300', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+        'REVIEW ONLY':     { label: 'Review Only',     icon: FileCheck,       color: 'text-blue-300',  bg: 'bg-blue-500/10',  border: 'border-blue-500/30'  },
+        'LOW RELEVANCE':   { label: 'Low Relevance',   icon: Bell,            color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30' },
+        'AUTO-ARCHIVE':    { label: 'Auto-Archive',    icon: Archive,         color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' },
+    };
+    const CATEGORY_ACTIONS: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+        'contract':           { label: 'Sign Contract',      icon: FileSignature, color: 'text-amber-300'  },
+        'invoice_payment':    { label: 'Verify Payment',     icon: Banknote,      color: 'text-emerald-300' },
+        'brand_deal':         { label: 'Verify Payment',     icon: Banknote,      color: 'text-emerald-300' },
+        'payment':            { label: 'Verify Payment',     icon: Banknote,      color: 'text-emerald-300' },
+        'case_update':        { label: 'Review Deadline',    icon: Calendar,      color: 'text-rose-300'   },
+        'court_notice':       { label: 'Review Deadline',    icon: Calendar,      color: 'text-rose-300'   },
+        'exam_notice':        { label: 'Review Deadline',    icon: Calendar,      color: 'text-amber-300'  },
+        'deadline_reminder':  { label: 'Review Deadline',    icon: Calendar,      color: 'text-amber-300'  },
+        'work_order':         { label: 'Flag Urgent',        icon: AlertTriangle, color: 'text-red-400'    },
+        'compliance_safety':  { label: 'Flag Urgent',        icon: AlertTriangle, color: 'text-red-400'    },
+        'lab_results':        { label: 'Review Urgent',      icon: ClipboardCheck,color: 'text-rose-300'   },
+        'escrow_legal':       { label: 'Flag Closing',       icon: FileCheck,     color: 'text-rose-400'   },
+        'investor_communication': { label: 'Reply Required', icon: CornerUpLeft,  color: 'text-blue-300'   },
+        'grant_application':  { label: 'Review Deadline',    icon: Calendar,      color: 'text-amber-300'  },
+    };
+    const suggestedActionRaw: string = (email?.suggested_action || 'REVIEW ONLY').toUpperCase();
+    const actionCfg = ACTION_CONFIG[suggestedActionRaw] || ACTION_CONFIG['REVIEW ONLY'];
+    const ActionIcon = actionCfg.icon;
+    const catAction = CATEGORY_ACTIONS[emailCategory] || null;
 
     return (
         <AnimatePresence>
@@ -237,6 +293,22 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                                     {/* Right Column: AI Intelligence Sidebar */}
                                     <div className="w-full lg:w-80 flex flex-col gap-4">
 
+                                        {/* Contextual Action Banner */}
+                                        <div className={`flex items-center justify-between px-3 py-2 rounded-lg border ${actionCfg.bg} ${actionCfg.border}`}>
+                                            <div className="flex items-center gap-2">
+                                                <ActionIcon className={`w-3.5 h-3.5 ${actionCfg.color}`} />
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${actionCfg.color}`}>
+                                                    {actionCfg.label}
+                                                </span>
+                                            </div>
+                                            {catAction && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10 font-medium flex items-center gap-1 ${catAction.color}`}>
+                                                    <catAction.icon className="w-3 h-3" />
+                                                    {catAction.label}
+                                                </span>
+                                            )}
+                                        </div>
+
                                         {/* AI Summary Card */}
                                         <div className="glass-panel p-4 bg-nexus-primary/5 border border-nexus-primary/20">
                                             <h4 className="text-xs font-mono font-bold text-nexus-primary uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -257,7 +329,33 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                                                         {email.category}
                                                     </span>
                                                 )}
+                                                <button
+                                                    onClick={() => setShowReclassify(!showReclassify)}
+                                                    className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-nexus-textMuted hover:text-nexus-text transition-colors flex items-center gap-1 border border-white/10"
+                                                    title="Wrong category? Reclassify this email"
+                                                >
+                                                    <RefreshCw className="w-3 h-3" /> Not {email.category}?
+                                                </button>
                                             </div>
+
+                                            {/* Reclassify dropdown */}
+                                            {showReclassify && (
+                                                <div className="mt-3 flex flex-wrap gap-1.5">
+                                                    {['important', 'requires_response', 'meeting_invitation', 'newsletter', 'promotional', 'social', 'transactional', 'spam']
+                                                        .filter(c => c !== email.category)
+                                                        .map(cat => (
+                                                            <button
+                                                                key={cat}
+                                                                disabled={reclassifying}
+                                                                onClick={() => handleReclassify(cat)}
+                                                                className="text-[10px] px-2 py-1 rounded bg-white/5 hover:bg-nexus-primary/20 hover:text-nexus-primary text-nexus-textMuted border border-white/10 hover:border-nexus-primary/30 transition-colors capitalize"
+                                                            >
+                                                                {cat.replace('_', ' ')}
+                                                            </button>
+                                                        ))
+                                                    }
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Security & Safety Alerts */}
@@ -312,8 +410,8 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
 
                                 </div>
 
-                                {/* Footer: Draft & Compose Area */}
-                                {!draft ? (
+                                {/* Footer: Draft & Compose Area — hidden for donotreply, otps, promotions, meetings */}
+                                {!showDraftButton ? null : !draft ? (
                                     <div className="p-4 border-t border-nexus-border bg-white/5 backdrop-blur-xl flex justify-center items-center">
                                         <button
                                             onClick={handleGenerateDraft}
@@ -360,6 +458,13 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                                                         className={`text-xs px-2.5 py-1.5 rounded bg-white/5 border border-white/10 hover:bg-nexus-primary/20 hover:border-nexus-primary/30 text-white/70 hover:text-nexus-primary transition-colors flex items-center gap-1.5 ${refining === 'shorter' ? 'opacity-50' : ''}`}
                                                     >
                                                         {refining === 'shorter' ? <Loader2 className="w-3 h-3 animate-spin" /> : <>📝</>} Shorter
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRefine('casual')}
+                                                        disabled={!!refining}
+                                                        className={`text-xs px-2.5 py-1.5 rounded bg-white/5 border border-white/10 hover:bg-nexus-primary/20 hover:border-nexus-primary/30 text-white/70 hover:text-nexus-primary transition-colors flex items-center gap-1.5 ${refining === 'casual' ? 'opacity-50' : ''}`}
+                                                    >
+                                                        {refining === 'casual' ? <Loader2 className="w-3 h-3 animate-spin" /> : <>💬</>} Casual
                                                     </button>
                                                     <button
                                                         onClick={handleGenerateDraft}

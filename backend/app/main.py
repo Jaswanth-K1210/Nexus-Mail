@@ -5,8 +5,9 @@ v3.1: Gmail + Calendar + Meeting Intelligence + Desktop Notifications
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.core.database import connect_to_mongo, close_mongo_connection
@@ -31,6 +32,7 @@ from app.routes.thread_routes import router as thread_router
 from app.routes.sender_routes import router as sender_router
 from app.routes.webhook_routes import router as webhook_router
 from app.routes.assistant_routes import router as assistant_router
+from app.routes.auto_reply_routes import router as auto_reply_router
 
 import structlog
 
@@ -74,6 +76,15 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type", "Accept"],
     )
 
+    # ─── Global exception handler (ensures CORS headers on 500s) ───
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.error("Unhandled exception", error=str(exc), path=request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal server error: {str(exc)}"},
+        )
+
     # ─── Rate Limiting ───
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -94,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(sender_router, prefix="/api")
     app.include_router(webhook_router, prefix="/api")
     app.include_router(assistant_router, prefix="/api")
+    app.include_router(auto_reply_router, prefix="/api")
 
     # ─── Health Check ───
     @app.get("/health")

@@ -210,7 +210,7 @@ class UnsubscribeService:
         if action in ("auto_archive", "auto_archive_label", "unsubscribed"):
             # Mark as auto-archived in our DB
             await db.emails.update_one(
-                {"_id": email_doc["_id"]},
+                {"_id": email_doc["_id"], "user_id": user_id},
                 {
                     "$set": {
                         "auto_archived": True,

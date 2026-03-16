@@ -11,7 +11,6 @@ Inspired by Inbox Zero's "Cursor Rules for email" concept, but with:
 
 from datetime import datetime, timezone
 from bson import ObjectId
-from typing import Optional
 
 from app.core.database import get_database
 from app.ai_worker.ai_provider import ai_provider, TaskType
@@ -289,35 +288,44 @@ class RulesEngine:
             try:
                 if action_type == "label":
                     await db.emails.update_one(
-                        {"_id": ObjectId(email_id)},
+                        {"_id": ObjectId(email_id), "user_id": user_id},
                         {"$addToSet": {"labels": action.get("value", "custom")}},
                     )
                     results.append({"action": "label", "value": action.get("value"), "status": "done"})
 
                 elif action_type == "archive":
                     await db.emails.update_one(
-                        {"_id": ObjectId(email_id)},
+                        {"_id": ObjectId(email_id), "user_id": user_id},
                         {"$set": {"is_archived": True}},
                     )
                     results.append({"action": "archive", "status": "done"})
 
                 elif action_type == "mark_read":
                     await db.emails.update_one(
-                        {"_id": ObjectId(email_id)},
+                        {"_id": ObjectId(email_id), "user_id": user_id},
                         {"$set": {"is_read": True}},
                     )
+                    # Also mark as read on Gmail directly
+                    gmail_id = email_doc.get("gmail_id")
+                    if gmail_id:
+                        try:
+                            from app.services.gmail_service import GmailService
+                            gmail_svc = GmailService()
+                            await gmail_svc.mark_as_read_on_gmail(user_id, gmail_id)
+                        except Exception as e:
+                            logger.warning("Gmail mark-as-read failed in rule", gmail_id=gmail_id, error=str(e))
                     results.append({"action": "mark_read", "status": "done"})
 
                 elif action_type == "mark_important":
                     await db.emails.update_one(
-                        {"_id": ObjectId(email_id)},
+                        {"_id": ObjectId(email_id), "user_id": user_id},
                         {"$set": {"category": "important"}},
                     )
                     results.append({"action": "mark_important", "status": "done"})
 
                 elif action_type == "set_priority":
                     await db.emails.update_one(
-                        {"_id": ObjectId(email_id)},
+                        {"_id": ObjectId(email_id), "user_id": user_id},
                         {"$set": {"priority_score": action.get("value", 50)}},
                     )
                     results.append({"action": "set_priority", "value": action.get("value"), "status": "done"})

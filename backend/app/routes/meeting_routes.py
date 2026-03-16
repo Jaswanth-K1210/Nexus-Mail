@@ -5,12 +5,15 @@ Per v3.1 spec section 5.1: all 6 endpoints.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+import structlog
 from app.routes.middleware import get_current_user
+from app.core.database import get_database
 from app.services.meeting_service import MeetingService
 from app.models.schemas import MeetingDeclineRequest, MeetingSuggestRequest
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 meeting_service = MeetingService()
+logger = structlog.get_logger(__name__)
 
 
 @router.get("/pending")
@@ -23,23 +26,36 @@ async def get_pending_meetings(user: dict = Depends(get_current_user)):
         alerts = await meeting_service.get_pending_alerts(user["user_id"])
         return {"alerts": alerts}
     except Exception as e:
+        logger.error("Failed to get pending meetings", user_id=user["user_id"], error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail="Internal server error. Please try again.",
         )
 
 @router.get("/upcoming")
 async def get_upcoming_events(user: dict = Depends(get_current_user)):
     """
-    Returns upcoming Google Calendar events for the current user.
+    Returns upcoming Google Calendar events for the current user,
+    with local status overrides (done, cancelled, rescheduled).
     """
     try:
+        db = get_database()
         events = await meeting_service.get_upcoming_events(user["user_id"])
+
+        # Inject local statuses
+        status_doc = await db.action_statuses.find_one({"user_id": user["user_id"]})
+        statuses = status_doc.get("statuses", {}) if status_doc else {}
+
+        for event in events:
+            event_key = f"event_{event['id']}"
+            event["local_status"] = statuses.get(event_key, "pending")
+
         return {"events": events}
     except Exception as e:
+        logger.error("Failed to get upcoming events", user_id=user["user_id"], error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail="Internal server error. Please try again.",
         )
 
 
@@ -53,6 +69,7 @@ async def accept_meeting(alert_id: str, user: dict = Depends(get_current_user)):
         result = await meeting_service.accept_meeting(alert_id, user["user_id"])
         return result
     except ValueError as e:
+        logger.warning("Validation error accepting meeting", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -63,9 +80,10 @@ async def accept_meeting(alert_id: str, user: dict = Depends(get_current_user)):
             detail="Alert does not belong to this user",
         )
     except Exception as e:
+        logger.error("Unexpected error accepting meeting", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail="Internal server error. Please try again.",
         )
 
 
@@ -85,6 +103,7 @@ async def decline_meeting(
         )
         return result
     except ValueError as e:
+        logger.warning("Validation error declining meeting", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -95,9 +114,10 @@ async def decline_meeting(
             detail="Alert does not belong to this user",
         )
     except Exception as e:
+        logger.error("Unexpected error declining meeting", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail="Internal server error. Please try again.",
         )
 
 
@@ -117,6 +137,7 @@ async def suggest_time(
         )
         return result
     except ValueError as e:
+        logger.warning("Validation error suggesting time", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -127,9 +148,10 @@ async def suggest_time(
             detail="Alert does not belong to this user",
         )
     except Exception as e:
+        logger.error("Unexpected error suggesting time", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail="Internal server error. Please try again.",
         )
 
 
@@ -146,14 +168,16 @@ async def check_availability(
         result = await meeting_service.get_availability(alert_id, user["user_id"])
         return result
     except ValueError as e:
+        logger.warning("Validation error checking availability", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
     except Exception as e:
+        logger.error("Unexpected error checking availability", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail="Internal server error. Please try again.",
         )
 
 
@@ -167,12 +191,14 @@ async def dismiss_alert(alert_id: str, user: dict = Depends(get_current_user)):
         result = await meeting_service.dismiss_alert(alert_id, user["user_id"])
         return result
     except ValueError as e:
+        logger.warning("Validation error dismissing alert", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
     except Exception as e:
+        logger.error("Unexpected error dismissing alert", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            detail="Internal server error. Please try again.",
         )

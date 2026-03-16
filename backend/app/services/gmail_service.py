@@ -63,20 +63,27 @@ class GmailService:
                 return await self._full_sync(service, db, user_id, max_results)
 
     async def _full_sync(
-        self, service, db, user_id: str, max_results: int
+        self, service, db, user_id: str, max_results: int,
+        only_unread: bool = False,
     ) -> dict:
         """
-        First-time full sync. Fetches recent emails and establishes
-        the historyId cursor for future incremental syncs.
+        Full sync from Gmail.
+        - Initial sync: fetches recent unread inbox emails and seeds the DB.
+        - Fallback sync (only_unread=True): when historyId expired, fetches
+          only UNREAD emails so already-read/synced emails are never re-read.
+
+        Uses a single batch DB lookup instead of per-email queries.
         """
-        logger.info("Running full initial sync", user_id=user_id)
+        sync_label = "fallback (unread only)" if only_unread else "initial"
+        logger.info("Running full sync", user_id=user_id, mode=sync_label)
 
         # Get the user's current profile to establish historyId baseline
         profile = service.users().getProfile(userId="me").execute()
         current_history_id = profile.get("historyId")
 
+        # Only fetch unread emails — read emails are already in our DB
         messages_result = service.users().messages().list(
-            userId="me", q="in:inbox", maxResults=max_results
+            userId="me", q="in:inbox is:unread", maxResults=max_results
         ).execute()
 
         messages = messages_result.get("messages", [])
@@ -91,24 +98,33 @@ class GmailService:
             )
             return {"synced": 0, "new_emails": 0, "sync_type": "full"}
 
+        # Batch-check which gmail_ids already exist in our DB (single query)
+        candidate_ids = [msg["id"] for msg in messages]
+        existing_cursor = db.emails.find(
+            {"user_id": user_id, "gmail_id": {"$in": candidate_ids}},
+            {"gmail_id": 1},
+        )
+        existing_ids = {doc["gmail_id"] async for doc in existing_cursor}
+
+        # Only fetch full message details for truly new emails
+        new_ids = [gid for gid in candidate_ids if gid not in existing_ids]
+
         new_count = 0
-        for msg_ref in messages:
-            gmail_id = msg_ref["id"]
-
-            # Skip if already in DB
-            existing = await db.emails.find_one(
-                {"user_id": user_id, "gmail_id": gmail_id}
-            )
-            if existing:
+        for gmail_id in new_ids:
+            try:
+                message = service.users().messages().get(
+                    userId="me", id=gmail_id, format="full"
+                ).execute()
+                email_doc = self._parse_gmail_message(message, user_id)
+                await db.emails.insert_one(email_doc)
+                new_count += 1
+            except Exception as e:
+                logger.warning(
+                    "Failed to fetch message during full sync",
+                    gmail_id=gmail_id,
+                    error=str(e),
+                )
                 continue
-
-            message = service.users().messages().get(
-                userId="me", id=gmail_id, format="full"
-            ).execute()
-
-            email_doc = self._parse_gmail_message(message, user_id)
-            await db.emails.insert_one(email_doc)
-            new_count += 1
 
         # Store the historyId cursor for future incremental syncs
         await db.users.update_one(
@@ -122,6 +138,9 @@ class GmailService:
         logger.info(
             "Full sync complete",
             user_id=user_id,
+            mode=sync_label,
+            candidates=len(candidate_ids),
+            skipped=len(existing_ids),
             new=new_count,
             history_id=current_history_id,
         )
@@ -159,12 +178,15 @@ class GmailService:
                     user_id=user_id,
                     error=error_str,
                 )
-                # Clear the stale cursor
+                # Clear the stale cursor and fall back to unread-only sync
+                # so we don't re-read emails that were already synced
                 await db.users.update_one(
                     {"_id": ObjectId(user_id)},
                     {"$unset": {"last_history_id": ""}},
                 )
-                return await self._full_sync(service, db, user_id, max_results)
+                return await self._full_sync(
+                    service, db, user_id, max_results, only_unread=True
+                )
             raise
 
         new_history_id = history_result.get("historyId", last_history_id)
@@ -186,19 +208,21 @@ class GmailService:
         for record in history_records:
             for msg_added in record.get("messagesAdded", []):
                 msg = msg_added.get("message", {})
-                # Only process inbox messages
-                if "INBOX" in msg.get("labelIds", []):
+                # Only process unread inbox messages
+                label_ids = msg.get("labelIds", [])
+                if "INBOX" in label_ids and "UNREAD" in label_ids:
                     new_message_ids.add(msg["id"])
 
-        new_count = 0
-        for gmail_id in new_message_ids:
-            # Skip if already in DB (idempotency!)
-            existing = await db.emails.find_one(
-                {"user_id": user_id, "gmail_id": gmail_id}
-            )
-            if existing:
-                continue
+        # Batch-check which gmail_ids already exist (single DB query)
+        existing_cursor = db.emails.find(
+            {"user_id": user_id, "gmail_id": {"$in": list(new_message_ids)}},
+            {"gmail_id": 1},
+        )
+        existing_ids = {doc["gmail_id"] async for doc in existing_cursor}
+        truly_new_ids = new_message_ids - existing_ids
 
+        new_count = 0
+        for gmail_id in truly_new_ids:
             try:
                 message = service.users().messages().get(
                     userId="me", id=gmail_id, format="full"
@@ -391,6 +415,21 @@ class GmailService:
         logger.info("Email sent", user_id=user_id, to=to_email, message_id=result["id"])
         return result
 
+    async def mark_as_read_on_gmail(self, user_id: str, gmail_id: str) -> None:
+        """Mark a message as read on Gmail so it doesn't get re-synced as unread."""
+        try:
+            credentials = await self.auth_service.get_user_credentials(user_id)
+            if not credentials:
+                return
+            service = build("gmail", "v1", credentials=credentials)
+            service.users().messages().modify(
+                userId="me",
+                id=gmail_id,
+                body={"removeLabelIds": ["UNREAD"]},
+            ).execute()
+        except Exception as e:
+            logger.warning("Failed to mark as read on Gmail", gmail_id=gmail_id, error=str(e))
+
     async def get_sync_status(self, user_id: str) -> dict:
         """Get the current Gmail sync status for the user."""
         db = get_database()
@@ -410,10 +449,12 @@ class GmailService:
 
         # Get pending meeting alerts
         pending_alerts = []
+        alert_ids_to_mark = []
         cursor = db.meeting_alerts.find(
             {"user_id": user_id, "status": "pending", "notification_sent": False}
         )
         async for alert in cursor:
+            alert_ids_to_mark.append(alert["_id"])
             pending_alerts.append({
                 "id": str(alert["_id"]),
                 "type": "meeting_invitation",
@@ -425,9 +466,10 @@ class GmailService:
                 "meeting_link": alert.get("meeting_link"),
             })
 
-            # Mark as notification sent
-            await db.meeting_alerts.update_one(
-                {"_id": alert["_id"]},
+        # Mark as notification sent in bulk (or sequentially, but outside the cursor loop)
+        if alert_ids_to_mark:
+            await db.meeting_alerts.update_many(
+                {"_id": {"$in": alert_ids_to_mark}, "user_id": user_id},
                 {"$set": {"notification_sent": True}}
             )
 

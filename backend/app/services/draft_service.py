@@ -10,6 +10,7 @@ Architecture pattern from Inbox Zero:
 
 from datetime import datetime, timezone
 from bson import ObjectId
+from bson.errors import InvalidId
 
 from app.core.database import get_database
 from app.services.gmail_service import GmailService
@@ -69,8 +70,13 @@ class DraftService:
         }
 
         # Check if auto-send is enabled and confidence exceeds threshold
+        # BUG FIX: user_id is a string but MongoDB _id is ObjectId
+        try:
+            user_oid = ObjectId(user_id)
+        except (InvalidId, TypeError):
+            user_oid = user_id
         user = await db.users.find_one(
-            {"_id": user_id},
+            {"_id": user_oid},
             {"auto_send_enabled": 1, "auto_send_threshold": 1},
         )
 
@@ -189,7 +195,7 @@ class DraftService:
 
         # Update draft status
         await db.email_drafts.update_one(
-            {"_id": ObjectId(draft_id)},
+            {"_id": ObjectId(draft_id), "user_id": user_id},
             {"$set": {
                 "status": "approved",
                 "reviewed_at": datetime.now(timezone.utc),
@@ -239,8 +245,12 @@ class DraftService:
     async def get_auto_send_settings(self, user_id: str) -> dict:
         """Get the user's auto-send configuration."""
         db = get_database()
+        try:
+            user_oid = ObjectId(user_id)
+        except (InvalidId, TypeError):
+            user_oid = user_id
         user = await db.users.find_one(
-            {"_id": user_id},
+            {"_id": user_oid},
             {"auto_send_enabled": 1, "auto_send_threshold": 1},
         )
 
@@ -259,8 +269,12 @@ class DraftService:
         if threshold < 0.8:
             threshold = 0.8
 
+        try:
+            user_oid = ObjectId(user_id)
+        except (InvalidId, TypeError):
+            user_oid = user_id
         await db.users.update_one(
-            {"_id": user_id},
+            {"_id": user_oid},
             {"$set": {
                 "auto_send_enabled": enabled,
                 "auto_send_threshold": threshold,

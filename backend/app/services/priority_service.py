@@ -19,8 +19,11 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-# ─── Category weight mapping (fixed, 0-100) ───
+# ─── Category weight mapping (0-100) ───
+# Shared categories have fixed weights. Role-specific categories default to 70
+# (work-relevant) unless overridden here.
 CATEGORY_WEIGHTS = {
+    # Shared
     "important": 90,
     "requires_response": 80,
     "meeting_invitation": 85,
@@ -29,7 +32,18 @@ CATEGORY_WEIGHTS = {
     "newsletter": 15,
     "promotional": 10,
     "spam": 0,
+    # High-priority role categories (require action)
+    "task_assigned": 85, "approval_required": 85, "court_notice": 90,
+    "investor_communication": 85, "patient_communication": 85,
+    "case_update": 85, "work_order": 80, "listing_inquiry": 80,
+    "lead_inbound": 80, "brand_deal": 80, "new_project_inquiry": 80,
+    "donor_communication": 80, "audit_compliance": 85,
+    "assignment": 80, "exam_notice": 85,
+    # Medium-priority (awareness needed)
+    "cold_outreach": 20, "fan_dm": 25, "platform_notification": 30,
+    "platform_update": 30, "campus_event": 35,
 }
+# Anything not listed defaults to 70 (assumed work-relevant for the role)
 
 
 class PriorityService:
@@ -51,7 +65,7 @@ class PriorityService:
 
         # ─── Signal 3: Category Weight (20%) ───
         category = email_doc.get("category", "")
-        category_score = CATEGORY_WEIGHTS.get(category, 30)
+        category_score = CATEGORY_WEIGHTS.get(category, 70)
 
         # ─── Signal 4: Recency Decay (15%) ───
         recency_score = self._recency_decay(email_doc)
@@ -97,7 +111,7 @@ class PriorityService:
         score = await self.score_email(user_id, email_doc)
 
         await db.emails.update_one(
-            {"_id": ObjectId(email_id)},
+            {"_id": ObjectId(email_id), "user_id": user_id},
             {"$set": {"priority_score": score}},
         )
 
@@ -163,6 +177,11 @@ class PriorityService:
 
         # AI severity multiplier (1-5 scale)
         severity = email_doc.get("severity", 3)
+        try:
+            severity = int(severity)
+        except (ValueError, TypeError):
+            severity = 3
+            
         if severity:
             score += (severity - 3) * 10  # 1→-20, 2→-10, 3→0, 4→+10, 5→+20
 

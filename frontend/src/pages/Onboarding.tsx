@@ -7,10 +7,26 @@ import {
 } from 'lucide-react';
 import api from '../api';
 
-const ROLES = [
-    'Startup Founder / CEO', 'Product Manager', 'Software Engineer',
-    'Designer', 'Sales / BD', 'Marketing', 'Investor / VC', 'Freelancer', 'Student', 'Other',
+// Role key → display name mapping (matches backend role_categories.py)
+const ROLE_OPTIONS: { key: string; label: string; emoji: string }[] = [
+    { key: 'student', label: 'Student', emoji: '🎓' },
+    { key: 'working_professional', label: 'Working Professional', emoji: '💼' },
+    { key: 'founder', label: 'Founder / Entrepreneur', emoji: '🚀' },
+    { key: 'influencer', label: 'Influencer / Creator', emoji: '🎤' },
+    { key: 'freelancer', label: 'Freelancer', emoji: '🖥️' },
+    { key: 'business_owner', label: 'Business Owner', emoji: '🏢' },
+    { key: 'healthcare', label: 'Healthcare Professional', emoji: '🩺' },
+    { key: 'legal', label: 'Legal Professional', emoji: '⚖️' },
+    { key: 'educator', label: 'Educator / Teacher', emoji: '📚' },
+    { key: 'trades', label: 'Trades / Field Engineer', emoji: '🔧' },
+    { key: 'real_estate', label: 'Real Estate Agent', emoji: '🏠' },
+    { key: 'nonprofit', label: 'Nonprofit / NGO', emoji: '🤝' },
+    { key: 'finance', label: 'Finance / Accounting', emoji: '📊' },
+    { key: 'sales_marketing', label: 'Sales & Marketing', emoji: '📣' },
 ];
+
+// Keep ROLES for backwards compat with the rest of the component
+const ROLES = ROLE_OPTIONS.map(r => r.label);
 const INDUSTRIES = [
     'SaaS / Software', 'Finance / Fintech', 'Healthcare', 'E-commerce',
     'Media / Content', 'Education', 'Consulting', 'Other',
@@ -26,13 +42,14 @@ export default function Onboarding() {
     const navigate = useNavigate();
     const [step, setStep] = useState(0);
     const [role, setRole] = useState('');
+    const [roleKey, setRoleKey] = useState('');
     const [customRole, setCustomRole] = useState('');
     const [industry, setIndustry] = useState('');
     const [companySize, setCompanySize] = useState('Startup (1-10)');
     const [importantSenders, setImportantSenders] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
 
-    const effectiveRole = ROLES.includes(role) ? role : customRole || role;
+    const effectiveRole = role || customRole;
 
     const toggleSender = (s: string) => {
         setImportantSenders(prev =>
@@ -45,6 +62,7 @@ export default function Onboarding() {
             setSaving(true);
             await api.patch('/tone/context', {
                 role: effectiveRole,
+                role_key: roleKey,
                 industry,
                 company_size: companySize,
                 important_senders: importantSenders,
@@ -72,25 +90,21 @@ export default function Onboarding() {
             content: (
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-2">
-                        {ROLES.map(r => (
-                            <button key={r} onClick={() => setRole(r)}
-                                className={`px-4 py-3 rounded-xl text-sm font-medium border transition-all text-left ${
-                                    role === r
+                        {ROLE_OPTIONS.map(r => (
+                            <button key={r.key} onClick={() => { setRole(r.label); setRoleKey(r.key); }}
+                                className={`px-4 py-3 rounded-xl text-sm font-medium border transition-all text-left flex items-center gap-2 ${
+                                    roleKey === r.key
                                         ? 'bg-nexus-primary/20 border-nexus-primary text-nexus-primary shadow-[0_0_15px_rgba(177,158,239,0.2)]'
                                         : 'border-nexus-border text-nexus-textMuted hover:border-nexus-primary/40 hover:text-nexus-text bg-white/5'
-                                }`}>{r}</button>
+                                }`}>
+                                <span className="text-lg">{r.emoji}</span>
+                                {r.label}
+                            </button>
                         ))}
                     </div>
-                    {role === 'Other' && (
-                        <input type="text" placeholder="Type your role..."
-                            value={customRole} onChange={e => setCustomRole(e.target.value)}
-                            autoFocus
-                            className="w-full px-4 py-3 rounded-xl text-sm text-nexus-text bg-white/5 border border-nexus-border focus:border-nexus-primary outline-none"
-                        />
-                    )}
                 </div>
             ),
-            canProceed: !!effectiveRole,
+            canProceed: !!roleKey,
         },
         // Step 1 — Industry + Size
         {

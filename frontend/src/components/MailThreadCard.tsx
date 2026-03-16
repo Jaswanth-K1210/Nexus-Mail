@@ -14,6 +14,8 @@ export type EmailThread = {
     aiConfidence?: number;
     suggestedAction?: string;
     riskFlags?: string[];
+    replied?: boolean;
+    receivedAt?: string;
 };
 
 interface MailThreadCardProps {

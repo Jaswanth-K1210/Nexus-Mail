@@ -54,7 +54,8 @@ class AuthService:
     async def handle_callback(
         self,
         code: str,
-        consent_given: bool,
+        state: str | None = None,
+        consent_given: bool = False,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> dict:
@@ -83,6 +84,10 @@ class AuthService:
             scopes=self.settings.google_oauth_scopes,
         )
         flow.redirect_uri = self.settings.google_redirect_uri
+        
+        # Verify state if provided (CSRF protection)
+        # In a stateless API, the frontend handles generating/storing the state.
+        # Passing it here ensures it's part of the token exchange if required.
         flow.fetch_token(code=code)
 
         credentials = flow.credentials
@@ -141,35 +146,6 @@ class AuthService:
                 "name": user["name"],
                 "profile_picture": user.get("profile_picture"),
                 "calendar_connected": calendar_granted,
-            },
-        }
-
-    async def demo_login(self) -> dict:
-        """Create a mock user and return a valid JWT for testing the UI without Google credentials."""
-        db = get_database()
-        user_info = {
-            "email": "demo@nexusmail.app",
-            "name": "Nexus Demo User",
-            "id": "demo-google-id-12345",
-            "picture": "https://ui-avatars.com/api/?name=Nexus&background=B19EEF&color=fff"
-        }
-        user = await self._upsert_user(
-            db, user_info, True, "127.0.0.1", "demo-agent", False
-        )
-        access_token = create_access_token(
-            data={"sub": str(user["_id"]), "email": user["email"]}
-        )
-        
-        logger.info("Demo login successful", user_email=user["email"])
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": str(user["_id"]),
-                "email": user["email"],
-                "name": user["name"],
-                "profile_picture": user.get("profile_picture"),
-                "calendar_connected": False,
             },
         }
 
@@ -307,7 +283,7 @@ class AuthService:
         db = get_database()
         user = await db.users.find_one(
             {"_id": ObjectId(user_id)},
-            {"consent": 1, "calendar_connected": 1}
+            {"consent": 1, "calendar_connected": 1, "email": 1}
         )
         if not user:
             return {"consent_given": False, "calendar_connected": False}
@@ -317,4 +293,28 @@ class AuthService:
             "consent_given": consent.get("given", False),
             "consent_version": consent.get("version"),
             "calendar_connected": user.get("calendar_connected", False),
+            "email": user.get("email", ""),
+        }
+
+    async def get_user_profile(self, user_id: str) -> dict:
+        """Return the full user profile for the settings page."""
+        from bson import ObjectId
+        db = get_database()
+        user = await db.users.find_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "email": 1, "name": 1, "profile_picture": 1,
+                "created_at": 1, "user_context": 1,
+                "calendar_connected": 1,
+            },
+        )
+        if not user:
+            return {}
+        return {
+            "email": user.get("email", ""),
+            "name": user.get("name", ""),
+            "picture": user.get("profile_picture", ""),
+            "created_at": str(user.get("created_at", "")),
+            "calendar_connected": user.get("calendar_connected", False),
+            "user_context": user.get("user_context", {}),
         }

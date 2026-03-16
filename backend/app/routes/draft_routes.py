@@ -6,11 +6,13 @@ CRUD endpoints for draft-first workflow.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
+import structlog
 from app.routes.middleware import get_current_user
 from app.services.draft_service import DraftService
 
 router = APIRouter(prefix="/drafts", tags=["Draft-First Mode"])
 draft_service = DraftService()
+logger = structlog.get_logger(__name__)
 
 
 class EditDraftRequest(BaseModel):
@@ -39,6 +41,7 @@ async def approve_draft(draft_id: str, user: dict = Depends(get_current_user)):
     try:
         return await draft_service.approve_draft(draft_id, user["user_id"])
     except ValueError as e:
+        logger.warning("Validation error approving draft", user_id=user["user_id"], draft_id=draft_id, error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -48,6 +51,7 @@ async def reject_draft(draft_id: str, user: dict = Depends(get_current_user)):
     try:
         return await draft_service.reject_draft(draft_id, user["user_id"])
     except ValueError as e:
+        logger.warning("Validation error rejecting draft", user_id=user["user_id"], draft_id=draft_id, error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -61,6 +65,7 @@ async def edit_draft(
     try:
         return await draft_service.edit_draft(draft_id, user["user_id"], body.body)
     except ValueError as e:
+        logger.warning("Validation error editing draft", user_id=user["user_id"], draft_id=draft_id, error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -87,7 +92,14 @@ async def refine_draft(
     current_body = draft_doc.get("draft_body", "")
 
     # Fetch the original email for context
-    email_doc = await db.emails.find_one({"_id": ObjectId(draft_doc["email_id"])})
+    email_id = draft_doc.get("email_id")
+    email_doc = None
+    if email_id:
+        try:
+            email_doc = await db.emails.find_one({"_id": ObjectId(email_id)})
+        except Exception as e:
+            logger.warning("Could not fetch associated email for draft context", email_id=email_id, error=str(e))
+
     original_subject = email_doc.get("subject", "") if email_doc else ""
     original_body = email_doc.get("body_text", "")[:1500] if email_doc else ""
 
@@ -95,6 +107,7 @@ async def refine_draft(
         "polish": "Improve the grammar, clarity, and flow of this reply. Fix any awkward phrasing. Keep the same tone and length. Make it sound natural and polished.",
         "formal": "Rewrite this reply in a highly professional, formal business tone. Use proper salutations and sign-offs. Avoid contractions and casual language. Keep the same core message.",
         "shorter": "Condense this reply to be as brief as possible while keeping the core message intact. Remove filler words and unnecessary pleasantries. Max 2 sentences.",
+        "casual": "Rewrite this reply in a warm, casual, friendly tone. Use contractions, be conversational. Keep the same core message but make it feel like chatting with a friend.",
     }
 
     instruction = style_instructions.get(body.style)
@@ -120,7 +133,8 @@ Respond ONLY with the refined reply text. No JSON, no explanation, just the refi
 
         refined_body = result.strip()
         if not refined_body:
-            raise HTTPException(status_code=500, detail="AI returned empty result")
+            logger.error("AI returned empty refinement", user_id=user["user_id"], draft_id=draft_id)
+            raise HTTPException(status_code=500, detail="Internal server error. Please try again.")
 
         # Update the draft in DB
         await db.email_drafts.update_one(
@@ -135,7 +149,8 @@ Respond ONLY with the refined reply text. No JSON, no explanation, just the refi
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")
+        logger.error("Draft refinement failed", user_id=user["user_id"], draft_id=draft_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again.")
 
 
 @router.post("/generate/{email_id}")
@@ -150,9 +165,6 @@ async def generate_draft_on_demand(email_id: str, user: dict = Depends(get_curre
     if not email_doc:
         raise HTTPException(status_code=404, detail="Email not found")
 
-    if not email_doc.get("is_processed"):
-        raise HTTPException(status_code=400, detail="Email has not been processed by AI yet. Please wait for processing to complete.")
-
     # Check if a draft already exists
     existing_draft = await db.email_drafts.find_one({
         "email_id": email_id,
@@ -163,61 +175,92 @@ async def generate_draft_on_demand(email_id: str, user: dict = Depends(get_curre
         existing_draft["_id"] = str(existing_draft["_id"])
         return existing_draft
 
-    user_doc = await db.users.find_one({"_id": user["user_id"]})
+    try:
+        user_doc = await db.users.find_one({"_id": ObjectId(user["user_id"])})
+    except Exception:
+        user_doc = None
     tone_profile = user_doc.get("tone_profile") if user_doc else None
 
     # Fetch full thread context if this email is part of a conversation
     thread_id = email_doc.get("thread_id")
     thread_messages = []
     if thread_id:
-        cursor = db.emails.find(
-            {"user_id": user["user_id"], "thread_id": thread_id}
-        ).sort("received_at", 1)
-        async for msg in cursor:
-            thread_messages.append({
-                "sender_name": msg.get("sender_name", ""),
-                "sender_email": msg.get("sender_email", ""),
-                "subject": msg.get("subject", ""),
-                "body": msg.get("body_text", "")[:1500],
-                "received_at": msg.get("received_at", ""),
-            })
+        try:
+            cursor = db.emails.find(
+                {"user_id": user["user_id"], "thread_id": thread_id}
+            ).sort("received_at", 1)
+            async for msg in cursor:
+                thread_messages.append({
+                    "sender_name": msg.get("sender_name", ""),
+                    "sender_email": msg.get("sender_email", ""),
+                    "subject": msg.get("subject", ""),
+                    "body": msg.get("body_text", "")[:1500],
+                    "received_at": msg.get("received_at", ""),
+                })
+        except Exception as e:
+            logger.warning("Thread fetch failed", error=str(e))
 
     # Use AI to generate draft with thread context
-    reply = await generate_reply_draft(
-        subject=email_doc.get("subject", ""),
-        body=email_doc.get("body_text", ""),
-        sender=email_doc.get("sender_email", ""),
-        sender_name=email_doc.get("sender_name", ""),
-        is_meeting=email_doc.get("is_meeting_invitation", False),
-        tone_profile=tone_profile,
-        availability=None,
-        priority_score=email_doc.get("priority_score", 50),
-        thread_messages=thread_messages if len(thread_messages) > 1 else None,
-    )
+    try:
+        reply = await generate_reply_draft(
+            subject=email_doc.get("subject", ""),
+            body=email_doc.get("body_text", ""),
+            sender=email_doc.get("sender_email", ""),
+            sender_name=email_doc.get("sender_name", ""),
+            is_meeting=email_doc.get("is_meeting_invitation", False),
+            tone_profile=tone_profile,
+            availability=None,
+            priority_score=email_doc.get("priority_score", 50),
+            thread_messages=thread_messages if len(thread_messages) > 1 else None,
+        )
+    except Exception as e:
+        logger.error("generate_reply_draft crashed", error=str(e))
+        # Return a basic fallback draft so the user isn't blocked
+        sender_name = email_doc.get("sender_name", "")
+        reply = {
+            "reply_draft": f"Hi {sender_name},\n\nThank you for your email. I will review and get back to you shortly.\n\nBest regards",
+            "confidence": 0.3,
+        }
 
-    if not reply or not reply.get("reply_draft"):
-        raise HTTPException(status_code=500, detail="AI failed to generate draft")
+    # For meeting invitations, AI returns accept_draft/decline_draft instead of reply_draft
+    # Normalize so we always have reply_draft
+    draft_body = reply.get("reply_draft") or reply.get("accept_draft") or reply.get("decline_draft", "")
+    if not draft_body:
+        sender_name = email_doc.get("sender_name", "")
+        draft_body = f"Hi {sender_name},\n\nThank you for your email. I will review and get back to you shortly.\n\nBest regards"
 
-    # Store via draft service (auto-send logic evaluated inside)
-    draft_result = await draft_service.create_draft(
-        user_id=user["user_id"],
-        email_id=email_id,
-        draft_body=reply.get("reply_draft", ""),
-        draft_type="reply",
-        ai_confidence=reply.get("confidence", 0.8),
-        recipient_email=email_doc.get("sender_email", ""),
-        recipient_name=email_doc.get("sender_name", ""),
-        subject=email_doc.get("subject", ""),
-        thread_id=thread_id,
-        source="on_demand",
-    )
+    confidence = reply.get("confidence", 0.8)
+    if isinstance(confidence, str):
+        try:
+            confidence = float(confidence)
+        except ValueError:
+            confidence = 0.8
+
+    # Store via draft service
+    try:
+        draft_result = await draft_service.create_draft(
+            user_id=user["user_id"],
+            email_id=email_id,
+            draft_body=draft_body,
+            draft_type="reply",
+            ai_confidence=confidence,
+            recipient_email=email_doc.get("sender_email", ""),
+            recipient_name=email_doc.get("sender_name", ""),
+            subject=email_doc.get("subject", ""),
+            thread_id=thread_id,
+            source="on_demand",
+        )
+    except Exception as e:
+        logger.error("create_draft failed", user_id=user["user_id"], email_id=email_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error. Please try again.")
 
     new_draft = await db.email_drafts.find_one({"_id": ObjectId(draft_result["draft_id"])})
     if new_draft:
         new_draft["_id"] = str(new_draft["_id"])
         return new_draft
 
-    raise HTTPException(status_code=500, detail="Failed to retrieve created draft")
+    logger.error("Failed to retrieve created draft", user_id=user["user_id"], draft_id=draft_result.get("draft_id"))
+    raise HTTPException(status_code=500, detail="Internal server error. Please try again.")
 
 
 @router.get("/settings/auto-send")

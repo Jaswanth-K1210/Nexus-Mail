@@ -9,19 +9,21 @@ async def run():
     pipeline = ProcessingPipeline()
     db = get_database()
     
+    email = await db.emails.find_one()
+    if not email:
+        print("No email found.")
+        return
+    user_id = email.get("user_id")
+    
     # reset emails
     result = await db.emails.update_many(
-        {"$or": [
-            {"sender_name": {"$regex": "umesh|hunter|amazinghunter", "$options": "i"}},
-            {"sender_email": {"$regex": "umesh|hunter|amazinghunter", "$options": "i"}},
-            {"subject": {"$regex": "emergency|catch up", "$options": "i"}}
-        ]},
+        {},
         {"$set": {"is_processed": False}}
     )
-    print(f"Reset {result.modified_count} emails for reprocessing.")
+    print(f"Reset {result.modified_count} emails for reprocessing. Using user_id {user_id}")
     
     # Process
-    res = await pipeline.process_unprocessed_emails("69ac4718fe607d80baebda41", limit=10)
+    res = await pipeline.process_unprocessed_emails(user_id, limit=50)
     print("Reprocessed:", res)
 
     await close_redis_connection()

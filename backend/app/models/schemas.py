@@ -184,6 +184,7 @@ class MeetingAlertInDB(BaseModel):
 
 class AuthCallbackRequest(BaseModel):
     code: str
+    state: Optional[str] = None
     consent_given: bool = False
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None

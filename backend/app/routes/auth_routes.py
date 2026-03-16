@@ -3,27 +3,31 @@ Nexus Mail — Auth Routes
 Google OAuth flow + consent status.
 """
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status, Depends
 from app.services.auth_service import AuthService
 from app.models.schemas import AuthCallbackRequest
+from app.routes.middleware import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 auth_service = AuthService()
 
 
 @router.get("/google/url")
-async def get_google_auth_url():
+async def get_google_auth_url(state: str | None = None):
     """
     Get the Google OAuth consent URL.
     Frontend redirects user to this URL to begin sign-up.
+    Optionally accepts a state parameter for CSRF protection.
     """
     try:
-        url = auth_service.get_authorization_url()
+        url = auth_service.get_authorization_url(state=state)
         return {"auth_url": url}
     except Exception as e:
+        from structlog import get_logger
+        get_logger(__name__).error("Failed to generate auth URL", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate auth URL: {str(e)}",
+            detail="Failed to generate authentication URL. Please try again.",
         )
 
 
@@ -40,6 +44,7 @@ async def google_callback(request: Request, body: AuthCallbackRequest):
 
         result = await auth_service.handle_callback(
             code=body.code,
+            state=body.state,
             consent_given=body.consent_given,
             ip_address=ip_address or body.ip_address,
             user_agent=user_agent or body.user_agent,
@@ -53,37 +58,24 @@ async def google_callback(request: Request, body: AuthCallbackRequest):
             detail=str(e),
         )
     except Exception as e:
+        from structlog import get_logger
+        get_logger(__name__).error("OAuth callback failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"OAuth callback failed: {str(e)}",
+            detail="Authentication failed. Please try again.",
         )
 
-@router.post("/demo")
-async def demo_login():
-    """Development-only: Bypasses Google OAuth for local testing."""
-    from app.core.config import get_settings
-    settings = get_settings()
-    if not settings.enable_demo_mode:
-        raise HTTPException(status_code=403, detail="Demo mode is disabled")
-    try:
-        return await auth_service.demo_login()
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Demo login failed: {str(e)}",
-        )
-
+@router.get("/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    """Return the current user's full profile."""
+    return await auth_service.get_user_profile(user["user_id"])
 
 
 @router.get("/consent-status")
-async def consent_status(user: dict = None):
+async def consent_status(user: dict = Depends(get_current_user)):
     """
     Check if the current user has a valid consent record.
     Per v3.1 spec section 3.3.
     """
-    # In production, use `Depends(get_current_user)` for user
-    if not user:
-        return {"consent_given": False, "calendar_connected": False}
-
     result = await auth_service.get_consent_status(user["user_id"])
     return result

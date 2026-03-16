@@ -15,14 +15,18 @@ async def sync_emails_for_all_users():
     """Iterate through all users in the DB and trigger incremental sync & processing."""
     try:
         db = get_database()
-        cursor = db.users.find({}, {"_id": 1})
-        
+
+        # Only sync users who have linked Google credentials
+        linked_user_ids = await db.google_tokens.distinct("user_id")
+        if not linked_user_ids:
+            logger.info("Background sync complete", users_synced=0)
+            return
+
         gmail_service = GmailService()
         pipeline = ProcessingPipeline()
-        
+
         count = 0
-        async for user in cursor:
-            user_id = str(user["_id"])
+        for user_id in linked_user_ids:
             try:
                 # 1. Sync new emails
                 await gmail_service.sync_emails(user_id)

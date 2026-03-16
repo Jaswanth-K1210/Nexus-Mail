@@ -6,11 +6,13 @@ Natural language email rules CRUD and testing endpoints.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
+import structlog
 from app.routes.middleware import get_current_user
 from app.services.rules_engine import RulesEngine
 
 router = APIRouter(prefix="/rules", tags=["Natural Language Rules"])
 rules_engine = RulesEngine()
+logger = structlog.get_logger(__name__)
 
 
 class CreateRuleRequest(BaseModel):
@@ -66,6 +68,7 @@ async def update_rule(
             rule_id, user["user_id"], body.rule_text, body.is_active
         )
     except ValueError as e:
+        logger.warning("Rule update failed", user_id=user["user_id"], rule_id=rule_id, error=str(e))
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -75,6 +78,7 @@ async def delete_rule(rule_id: str, user: dict = Depends(get_current_user)):
     try:
         return await rules_engine.delete_rule(rule_id, user["user_id"])
     except ValueError as e:
+        logger.warning("Rule deletion failed", user_id=user["user_id"], rule_id=rule_id, error=str(e))
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -88,4 +92,5 @@ async def test_rule(
     try:
         return await rules_engine.test_rule(user["user_id"], rule_id, body.email_id)
     except ValueError as e:
+        logger.warning("Rule testing failed", user_id=user["user_id"], rule_id=rule_id, error=str(e))
         raise HTTPException(status_code=404, detail=str(e))

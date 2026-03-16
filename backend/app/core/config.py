@@ -84,9 +84,6 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60
     encryption_key: str = ""  # AES-256 key, base64 encoded (REQUIRED for production)
 
-    # --- Demo Mode ---
-    enable_demo_mode: bool = True  # Set False in production
-
     # --- CORS ---
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 

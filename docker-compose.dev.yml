@@ -1,0 +1,27 @@
+# Nexus Mail — Docker Compose DEV Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Adds hot-reload for both backend and frontend during local development.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - APP_ENV=development
+      - APP_DEBUG=true
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "80:5173"
+    command: npm run dev -- --host 0.0.0.0

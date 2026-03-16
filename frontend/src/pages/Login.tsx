@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { GhostCursor } from '../components/GhostCursor';
-import { Mail, Sparkles, Zap, Shield, ChevronRight } from 'lucide-react';
+import { Mail, Sparkles, Zap, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../api';
 
@@ -20,22 +20,6 @@ export default function Login() {
         } catch (err) {
             console.error('Failed to get Auth URL', err);
             toast.error('Failed to connect to backend.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleDemoLogin = async () => {
-        try {
-            setIsLoading(true);
-            const res = await api.post('/auth/demo');
-            if (res.data?.access_token) {
-                localStorage.setItem('nexus_token', res.data.access_token);
-                navigate('/dashboard');
-            }
-        } catch (err) {
-            console.error('Demo Login Failed', err);
-            toast.error('Demo login failed.');
         } finally {
             setIsLoading(false);
         }
@@ -138,20 +122,6 @@ export default function Login() {
                             {isLoading ? 'Connecting...' : 'Sign in with Google'}
                         </button>
 
-                        <div className="w-full flex items-center gap-3 mb-6 opacity-60">
-                            <div className="h-px bg-white/20 flex-1"></div>
-                            <span className="text-xs font-medium tracking-wider uppercase">or explore</span>
-                            <div className="h-px bg-white/20 flex-1"></div>
-                        </div>
-
-                        <button
-                            onClick={handleDemoLogin}
-                            disabled={isLoading}
-                            className={`glass-button glass-button-primary w-full group overflow-hidden ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                            <span className="relative z-10 flex items-center justify-center gap-2">
-                                Enter Demo Mode <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </span>
-                        </button>
                         <p className="mt-6 text-xs text-white/40 text-center font-light">
                             By continuing, you agree to our Terms of Service and Architecture Manifesto.
                         </p>

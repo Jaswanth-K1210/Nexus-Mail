@@ -27,6 +27,8 @@ from app.services.unsubscribe_service import UnsubscribeService
 from app.services.sse_service import push_to_user
 from app.services.rules_engine import RulesEngine
 from app.services.priority_service import PriorityService
+from app.services.gmail_service import GmailService
+from app.services.auto_reply_service import AutoReplyService
 from app.ai_worker.sanitizer import sanitize_email_body
 
 import structlog
@@ -47,6 +49,8 @@ class ProcessingPipeline:
         self.unsub_service = UnsubscribeService()
         self.rules_engine = RulesEngine()
         self.priority_service = PriorityService()
+        self.gmail_service = GmailService()
+        self.auto_reply_service = AutoReplyService()
 
     async def process_email(self, email_id: str, user_id: str) -> dict:
         """
@@ -105,22 +109,28 @@ class ProcessingPipeline:
 
             results = {"email_id": email_id, "tasks_completed": []}
 
-            # ─── Fetch User Persona for Classification ───
-            # Retrieve the user doc to get the learned tone_profile/persona, doing this once
-            # avoids polling the DB multiple times per sender.
-            user_doc = await db.users.find_one({"_id": ObjectId(user_id)}, {"tone_profile": 1})
+            # ─── Fetch User Persona + Role for Classification ───
+            user_doc = await db.users.find_one(
+                {"_id": ObjectId(user_id)},
+                {"tone_profile": 1, "user_context": 1},
+            )
             user_persona = ""
-            if user_doc and user_doc.get("tone_profile"):
-                user_persona = user_doc["tone_profile"].get("professional_persona", "")
+            user_role = None
+            if user_doc:
+                if user_doc.get("tone_profile"):
+                    user_persona = user_doc["tone_profile"].get("professional_persona", "")
+                if user_doc.get("user_context"):
+                    user_role = user_doc["user_context"].get("role_key")
 
             # ─── Task 1: Classification ───
-            logger.info("Task 1: Classifying email", email_id=email_id)
+            logger.info("Task 1: Classifying email", email_id=email_id, user_role=user_role)
             classification = await classify_email(
                 subject=subject,
                 body=body,
                 sender=sender,
                 has_ics=False,  # TODO: check attachments for .ics
-                user_persona=user_persona
+                user_persona=user_persona,
+                user_role=user_role,
             )
             results["classification"] = classification
             results["tasks_completed"].append("classify")
@@ -142,6 +152,7 @@ class ProcessingPipeline:
                     sender_name=sender_name,
                     sender_email=sender,
                     subject=subject,
+                    thread_id=email_doc.get("thread_id"),
                     credentials=credentials,
                 )
                 results["meeting_intelligence"] = meeting_result
@@ -247,11 +258,23 @@ class ProcessingPipeline:
                 {"$set": update_data}
             )
 
+            # ─── Auto-Reply for low-priority emails ───
+            enriched_doc = {**email_doc, **update_data}
+            try:
+                if await self.auto_reply_service.should_auto_reply(user_id, enriched_doc):
+                    auto_reply_result = await self.auto_reply_service.generate_and_send(user_id, enriched_doc)
+                    if auto_reply_result:
+                        results["auto_reply"] = auto_reply_result
+                        results["tasks_completed"].append("auto_reply")
+                        logger.info("Auto-reply sent", email_id=email_id, to=sender)
+            except Exception as e:
+                logger.warning("Auto-reply step failed (non-fatal)", email_id=email_id, error=str(e))
+
             # ─── Evaluate natural language rules (Phase 1.2) ───
-            matched_rules = await self.rules_engine.evaluate_all_rules(user_id, email_doc)
+            # BUG FIX: Use enriched doc with AI results so category/meeting-based rules work.
+            # Previously used raw email_doc where category=None, so rules never matched.
+            matched_rules = await self.rules_engine.evaluate_all_rules(user_id, enriched_doc)
             if matched_rules:
-                # Merge email_doc with AI results for richer rule evaluation
-                enriched_doc = {**email_doc, **update_data}
                 for rule_match in matched_rules:
                     try:
                         action_results = await self.rules_engine.execute_actions(
@@ -267,6 +290,16 @@ class ProcessingPipeline:
                             rule=rule_match.get("rule_text", "")[:60],
                             error=str(e),
                         )
+
+            # ─── Mark as read on Gmail after processing (IBM pattern) ───
+            # This prevents the sync from re-fetching the same email on every cycle.
+            # Gmail query uses "is:unread", so marking read = never re-synced.
+            gmail_id = email_doc.get("gmail_id")
+            if gmail_id:
+                try:
+                    await self.gmail_service.mark_as_read_on_gmail(user_id, gmail_id)
+                except Exception as e:
+                    logger.warning("Gmail mark-as-read failed", gmail_id=gmail_id, error=str(e))
 
             # ─── Push real-time SSE events ───
             await push_to_user(user_id, "email_processed", {

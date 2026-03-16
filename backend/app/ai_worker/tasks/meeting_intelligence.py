@@ -5,6 +5,7 @@ Extracts meeting data, checks Google Calendar, creates meeting alert.
 Per v3.1 spec: Section 4 (Meeting Intelligence Engine).
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from dateutil import parser as dateutil_parser
 from dateutil.tz import gettz
@@ -115,14 +116,19 @@ async def check_calendar_availability(
     """
     try:
         service = build("calendar", "v3", credentials=credentials)
-        events_result = service.events().list(
-            calendarId="primary",
-            timeMin=window_start.isoformat(),
-            timeMax=window_end.isoformat(),
-            singleEvents=True,
-            orderBy="startTime",
-            fields="items(id,summary,start,end,status)",
-        ).execute()
+        # BUG FIX: Google API calls are synchronous and block the event loop.
+        # Run in a thread to avoid blocking all other async operations.
+        def _fetch_events():
+            return service.events().list(
+                calendarId="primary",
+                timeMin=window_start.isoformat(),
+                timeMax=window_end.isoformat(),
+                singleEvents=True,
+                orderBy="startTime",
+                fields="items(id,summary,start,end,status)",
+            ).execute()
+
+        events_result = await asyncio.to_thread(_fetch_events)
 
         events = events_result.get("items", [])
         return [
@@ -189,6 +195,7 @@ async def process_meeting_invitation(
     sender_name: str,
     sender_email: str,
     subject: str,
+    thread_id: str | None = None,
     credentials: Credentials | None = None,
 ) -> dict | None:
     """
@@ -224,6 +231,26 @@ async def process_meeting_invitation(
     )
     duration = meeting_data.get("duration_minutes", 60)
 
+    # Check for duplicate: same sender, same time
+    existing_alert = await db.meeting_alerts.find_one({
+        "user_id": user_id,
+        "sender_email": sender_email,
+        "proposed_datetime": proposed_dt
+    })
+    
+    if existing_alert:
+        logger.info("Skipping duplicate meeting alert", email_id=email_id, proposed_time=proposed_dt.isoformat())
+        await db.emails.update_one(
+            {"_id": ObjectId(email_id)},
+            {"$set": {"has_meeting_alert": True, "is_meeting_invitation": True}}
+        )
+        return {
+            "alert_id": str(existing_alert["_id"]),
+            "availability": existing_alert.get("availability", "free"),
+            "proposed_datetime": proposed_dt.isoformat(),
+            "duration_minutes": duration,
+        }
+
     # Stage 3: Check calendar availability
     availability_result = {"status": "free", "conflicts": []}
     if credentials:
@@ -241,6 +268,7 @@ async def process_meeting_invitation(
     alert_doc = {
         "user_id": user_id,
         "email_id": email_id,
+        "thread_id": thread_id,
         "sender_name": sender_name,
         "sender_email": sender_email,
         "proposed_datetime": proposed_dt,

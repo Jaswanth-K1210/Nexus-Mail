@@ -50,11 +50,32 @@ Confidence: <0.0-1.0>
 Reasoning: <brief explanation>"""
 
 
-async def classify_email(subject: str, body: str, sender: str, has_ics: bool = False, user_persona: str = "") -> dict:
+async def classify_email(
+    subject: str,
+    body: str,
+    sender: str,
+    has_ics: bool = False,
+    user_persona: str = "",
+    user_role: str | None = None,
+) -> dict:
     """
-    Task 1: Classify an email into one of 8 categories.
-    Also sets the is_meeting_invitation flag.
+    Task 1: Classify an email.
+    If user_role is set, uses role-specific categories (up to ~15).
+    Otherwise falls back to the default 8-category prompt.
     """
+    from app.ai_worker.role_categories import get_role_prompt, get_role_categories, VALID_ROLES
+
+    # Pick the right system prompt and valid categories
+    if user_role and user_role in VALID_ROLES:
+        system_prompt = get_role_prompt(user_role)
+        valid_categories = get_role_categories(user_role)
+    else:
+        system_prompt = CLASSIFY_SYSTEM_PROMPT
+        valid_categories = [
+            "important", "requires_response", "meeting_invitation",
+            "newsletter", "promotional", "social", "transactional", "spam",
+        ]
+
     user_prompt = f"""Classify this email:
 
 FROM: {sanitize_for_prompt(sender, 200)}
@@ -67,30 +88,33 @@ BODY:
 
     try:
         result = await ai_provider.complete_text_kv(
-            system_prompt=CLASSIFY_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.1,
             task_type=TaskType.CLASSIFICATION,
         )
 
-        # Validate the response
-        valid_categories = [
-            "important", "requires_response", "meeting_invitation",
-            "newsletter", "promotional", "social", "transactional", "spam"
-        ]
-
-        category = result.get("category", "important").lower()
-        if category not in valid_categories:
-            category = "important"
+        raw_category = str(result.get("category", "important")).lower()
+        category = "important"
+        for vc in valid_categories:
+            if vc in raw_category:
+                category = vc
+                break
 
         try:
-            severity = max(1, min(5, int(result.get("severity", "3"))))
-        except ValueError:
+            import re
+            raw_severity = str(result.get("severity", "3"))
+            digits = re.findall(r'\d', raw_severity)
+            if digits:
+                severity = max(1, min(5, int(digits[0])))
+            else:
+                severity = 3
+        except Exception:
             severity = 3
             
         # Handle string "true" / "false"
-        is_meeting_str = result.get("is meeting invitation", "false").lower()
-        is_meeting = is_meeting_str == "true"
+        is_meeting_str = str(result.get("is meeting invitation", "false")).lower()
+        is_meeting = "true" in is_meeting_str
 
         # Override: .ics attachment always means meeting
         if has_ics:
@@ -98,14 +122,23 @@ BODY:
             category = "meeting_invitation"
 
         try:
-            confidence = float(result.get("confidence", "0"))
-        except ValueError:
+            import re
+            raw_conf = str(result.get("confidence", "0"))
+            floats = re.findall(r'0\.\d+|1\.0|1|0', raw_conf)
+            if floats:
+                confidence = float(floats[0])
+            else:
+                confidence = 0.0
+        except Exception:
             confidence = 0.0
 
-        suggested_action = result.get("suggested action", "REVIEW ONLY").upper()
+        raw_action = str(result.get("suggested action", "REVIEW ONLY")).upper()
         valid_actions = ["ACTION REQUIRED", "REVIEW ONLY", "LOW RELEVANCE", "AUTO-ARCHIVE"]
-        if suggested_action not in valid_actions:
-            suggested_action = "REVIEW ONLY"
+        suggested_action = "REVIEW ONLY"
+        for va in valid_actions:
+            if va in raw_action:
+                suggested_action = va
+                break
 
         logger.info(
             "Email classified",

@@ -57,11 +57,12 @@ class MeetingService:
         if not credentials:
             raise ValueError("No Google credentials found")
 
-        user = await db.users.find_one({"_id": user_id})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         tone_profile = user.get("tone_profile") if user else None
 
         # Get original email
-        email_doc = await db.emails.find_one({"_id": alert["email_id"]})
+        # BUG FIX: alert["email_id"] is a string, need ObjectId for MongoDB _id lookup
+        email_doc = await db.emails.find_one({"_id": ObjectId(alert["email_id"])})
 
         # Step 3: Generate acceptance reply
         reply_text = await self._generate_accept_reply(
@@ -94,7 +95,7 @@ class MeetingService:
 
         # Step 6: Update alert status
         await db.meeting_alerts.update_one(
-            {"_id": ObjectId(alert_id)},
+            {"_id": ObjectId(alert_id), "user_id": user_id},
             {
                 "$set": {
                     "status": "accepted",
@@ -138,10 +139,10 @@ class MeetingService:
         if alert["status"] != "pending":
             raise ValueError(f"Alert is not pending (status: {alert['status']})")
 
-        user = await db.users.find_one({"_id": user_id})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         tone_profile = user.get("tone_profile") if user else None
 
-        email_doc = await db.emails.find_one({"_id": alert["email_id"]})
+        email_doc = await db.emails.find_one({"_id": ObjectId(alert["email_id"])})
 
         # Generate decline reply
         reply_text = await self._generate_decline_reply(
@@ -162,7 +163,7 @@ class MeetingService:
 
         # Update alert
         await db.meeting_alerts.update_one(
-            {"_id": ObjectId(alert_id)},
+            {"_id": ObjectId(alert_id), "user_id": user_id},
             {
                 "$set": {
                     "status": "declined",
@@ -195,10 +196,10 @@ class MeetingService:
         if alert["status"] != "pending":
             raise ValueError(f"Alert is not pending (status: {alert['status']})")
 
-        user = await db.users.find_one({"_id": user_id})
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
         tone_profile = user.get("tone_profile") if user else None
 
-        email_doc = await db.emails.find_one({"_id": alert["email_id"]})
+        email_doc = await db.emails.find_one({"_id": ObjectId(alert["email_id"])})
         suggested_dt = dateutil_parser.parse(suggested_datetime)
 
         # Generate counter-proposal reply
@@ -220,7 +221,7 @@ class MeetingService:
 
         # Update alert
         await db.meeting_alerts.update_one(
-            {"_id": ObjectId(alert_id)},
+            {"_id": ObjectId(alert_id), "user_id": user_id},
             {
                 "$set": {
                     "status": "suggested",
@@ -234,7 +235,7 @@ class MeetingService:
         # Move email to 'awaiting_reply' category
         if email_doc:
             await db.emails.update_one(
-                {"_id": email_doc["_id"]},
+                {"_id": email_doc["_id"], "user_id": user_id},
                 {"$set": {"category": "awaiting_reply"}}
             )
 
@@ -252,6 +253,8 @@ class MeetingService:
         alert = await db.meeting_alerts.find_one({"_id": ObjectId(alert_id)})
         if not alert:
             raise ValueError("Meeting alert not found")
+        if alert["user_id"] != user_id:
+            raise PermissionError("Alert does not belong to this user")
 
         credentials = await self.auth_service.get_user_credentials(user_id)
         if not credentials:
@@ -270,7 +273,7 @@ class MeetingService:
         return {"available_slots": slots}
 
     async def get_pending_alerts(self, user_id: str) -> list[dict]:
-        """Get all pending meeting alerts for a user."""
+        """Get all pending meeting alerts for a user, enriched with email subject and conflict info."""
         db = get_database()
 
         alerts = []
@@ -279,15 +282,39 @@ class MeetingService:
         ).sort("created_at", -1)
 
         async for alert in cursor:
+            # Fetch the associated email to get the subject for a one-line summary
+            email_subject = ""
+            try:
+                email_doc = await db.emails.find_one(
+                    {"_id": ObjectId(alert["email_id"])},
+                    {"subject": 1}
+                )
+                if email_doc:
+                    email_subject = email_doc.get("subject", "")
+            except Exception:
+                pass
+
+            # Build conflict info for "busy" alerts
+            conflicts = []
+            for c in alert.get("conflict_events", []):
+                conflicts.append({
+                    "title": c.get("title", ""),
+                    "start": c["start"].isoformat() if hasattr(c.get("start"), "isoformat") else str(c.get("start", "")),
+                    "end": c["end"].isoformat() if hasattr(c.get("end"), "isoformat") else str(c.get("end", "")),
+                })
+
             alerts.append({
                 "id": str(alert["_id"]),
                 "type": "meeting_invitation",
                 "sender_name": alert.get("sender_name", ""),
                 "sender_email": alert.get("sender_email", ""),
+                "email_subject": email_subject,
                 "proposed_time": alert["proposed_datetime"].isoformat(),
                 "duration_min": alert.get("duration_minutes", 60),
                 "availability": alert.get("availability", "free"),
                 "meeting_link": alert.get("meeting_link"),
+                "meeting_platform": alert.get("meeting_platform", ""),
+                "conflicts": conflicts,
                 "status": alert.get("status", "pending"),
             })
 
@@ -339,13 +366,26 @@ class MeetingService:
                 start = event['start'].get('dateTime', event['start'].get('date'))
                 end = event['end'].get('dateTime', event['end'].get('date'))
                 
+                attendees = []
+                for a in event.get('attendees', []):
+                    attendees.append({
+                        "email": a.get('email', ''),
+                        "name": a.get('displayName', ''),
+                        "status": a.get('responseStatus', 'needsAction'),
+                        "organizer": a.get('organizer', False),
+                    })
+
                 formatted_events.append({
                     "id": event['id'],
                     "summary": event.get('summary', 'Busy'),
                     "start": start,
                     "end": end,
                     "location": event.get('location', ''),
-                    "link": event.get('hangoutLink', '')
+                    "link": event.get('hangoutLink', ''),
+                    "description": event.get('description', ''),
+                    "attendees": attendees,
+                    "organizer_email": event.get('organizer', {}).get('email', ''),
+                    "status": event.get('status', 'confirmed'),
                 })
                 
             return formatted_events

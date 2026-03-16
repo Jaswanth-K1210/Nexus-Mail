@@ -9,6 +9,7 @@ from bson import ObjectId
 
 from app.core.database import get_database
 from app.ai_worker.ai_provider import ai_provider, TaskType
+from app.ai_worker.sanitizer import sanitize_email_body
 
 import structlog
 
@@ -213,9 +214,15 @@ BODY:
         if not settings.get("enabled"):
             return None
 
+        # BUG FIX: Use sanitized body so HTML-only emails are also analyzed.
+        # Previously passed raw body_text which can be empty for HTML emails.
+        body = sanitize_email_body(
+            body_text=email_doc.get("body_text", ""),
+            body_html=email_doc.get("body_html", ""),
+        )
         result = await self.detect_cold_email(
             subject=email_doc.get("subject", ""),
-            body=email_doc.get("body_text", ""),
+            body=body,
             sender_email=email_doc.get("sender_email", ""),
             sender_name=email_doc.get("sender_name", ""),
             user_id=user_id,
@@ -235,7 +242,7 @@ BODY:
                 update_fields["auto_archived"] = True
 
             await db.emails.update_one(
-                {"_id": email_doc["_id"]},
+                {"_id": email_doc["_id"], "user_id": user_id},
                 {"$set": update_fields},
             )
 
