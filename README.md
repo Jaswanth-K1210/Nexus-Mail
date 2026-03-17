@@ -7,10 +7,8 @@
   *A privacy-first, zero-data retention command center for your inbox.*
 
   <br>
-  <video src="https://github.com/Jaswanth-K1210/Nexus-Mail/raw/main/demo.mov" controls="controls" width="800"></video>
-  <br>
-  [Watch the Screen Recording](demo.mov)
-  <br>
+  <b><a href="https://github.com/Jaswanth-K1210/Nexus-Mail/blob/main/demo.mov">▶️ Click here to watch the Demo Video</a></b>
+  <br><br>
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
   [![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)](https://fastapi.tiangolo.com/)
