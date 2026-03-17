@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Briefcase, Tag, BellOff, Landmark, KeyRound, Receipt,
@@ -181,10 +181,7 @@ const OTHER_LANE: LaneConfig = {
     match: () => false,
 };
 
-function getCategoryLane(category: string): LaneConfig | null {
-    const cat = (category || '').toLowerCase().trim();
-    return CATEGORY_LANES.find(lane => lane.match(cat)) ?? null;
-}
+
 
 // ─── Persistent lane order (localStorage) ────────────────────────────────────
 const LANE_ORDER_KEY = 'nexus_lane_order';
@@ -283,9 +280,11 @@ function CategoryColumn({
     );
 }
 
-// ─── Important View — sorted by time received, grouped into time buckets ─────
-const IMPORTANT_CATEGORIES = [
-    'important', 'requires_response', 'meeting_invitation',
+// ─── Important View — sorted by date (newest first), priority as tiebreaker ──
+// Show everything EXCEPT known low-value categories
+const NON_IMPORTANT_CATEGORIES = [
+    'promotional', 'newsletter', 'marketing', 'social',
+    'transactional', 'spam', 'noreply', 'no-reply', 'automated',
 ];
 
 function formatTimeAgo(dateStr?: string): string {
@@ -311,16 +310,19 @@ function ImportantView({
     selectedIndex: number;
     onSelect: (thread: EmailThread) => void;
 }) {
-    // Only high priority (>= 60) mails, sorted by time received (newest first)
+    // All emails except low-value categories, sorted by date (newest first) then priority
     const filtered = inbox
         .filter(e => {
             const cat = (e.category || '').toLowerCase().trim();
-            return IMPORTANT_CATEGORIES.includes(cat) && e.priorityScore >= 60;
+            return !NON_IMPORTANT_CATEGORIES.includes(cat);
         })
         .sort((a, b) => {
+            // Primary sort: newest date first
             const tA = a.receivedAt ? new Date(a.receivedAt).getTime() : 0;
             const tB = b.receivedAt ? new Date(b.receivedAt).getTime() : 0;
-            return tB - tA; // newest first
+            if (tB !== tA) return tB - tA;
+            // Tiebreaker: higher priority first
+            return b.priorityScore - a.priorityScore;
         });
 
     // Group into time buckets
@@ -565,7 +567,7 @@ export function SplitInbox({ inbox, mode, onEmailRead, roleKey }: SplitInboxProp
     const isImportant = mode === 'important';
 
     const displayCount = isImportant
-        ? sorted.filter(e => IMPORTANT_CATEGORIES.includes((e.category || '').toLowerCase().trim())).length
+        ? sorted.filter(e => !NON_IMPORTANT_CATEGORIES.includes((e.category || '').toLowerCase().trim())).length
         : sorted.length;
 
     return (

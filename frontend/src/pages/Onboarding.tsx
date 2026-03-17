@@ -25,8 +25,7 @@ const ROLE_OPTIONS: { key: string; label: string; emoji: string }[] = [
     { key: 'sales_marketing', label: 'Sales & Marketing', emoji: '📣' },
 ];
 
-// Keep ROLES for backwards compat with the rest of the component
-const ROLES = ROLE_OPTIONS.map(r => r.label);
+
 const INDUSTRIES = [
     'SaaS / Software', 'Finance / Fintech', 'Healthcare', 'E-commerce',
     'Media / Content', 'Education', 'Consulting', 'Other',
@@ -43,13 +42,12 @@ export default function Onboarding() {
     const [step, setStep] = useState(0);
     const [role, setRole] = useState('');
     const [roleKey, setRoleKey] = useState('');
-    const [customRole, setCustomRole] = useState('');
     const [industry, setIndustry] = useState('');
     const [companySize, setCompanySize] = useState('Startup (1-10)');
     const [importantSenders, setImportantSenders] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
 
-    const effectiveRole = role || customRole;
+    const effectiveRole = role;
 
     const toggleSender = (s: string) => {
         setImportantSenders(prev =>

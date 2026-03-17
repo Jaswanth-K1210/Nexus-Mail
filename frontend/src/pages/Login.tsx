@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { GhostCursor } from '../components/GhostCursor';
 import { Mail, Sparkles, Zap, Shield } from 'lucide-react';
@@ -8,7 +7,7 @@ import api from '../api';
 
 export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
-    const navigate = useNavigate();
+
 
     const handleGoogleLogin = async () => {
         try {

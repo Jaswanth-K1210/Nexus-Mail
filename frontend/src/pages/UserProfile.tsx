@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     User, RefreshCw, Sun, Moon, LogOut, Settings,
     Bell, Shield, Palette, KeyRound, ArrowLeft, Mail,
     Link2, HelpCircle, Brain, Briefcase, Building2,
-    Users, Sparkles, CheckCircle2, Save, AlertTriangle,
+    Users, Sparkles, Save, AlertTriangle,
     X, Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';

@@ -120,6 +120,19 @@ export function MeetingAlerts() {
         }
     };
 
+    const handleResolveConflict = async (alertId: string, action: string) => {
+        try {
+            setActionLoading(alertId);
+            setConflictPopup(null);
+            await api.post(`/meetings/${alertId}/resolve-conflict`, { action });
+            setAlerts(prev => prev.filter(a => a.id !== alertId));
+        } catch (error) {
+            console.error("Failed to resolve conflict", error);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     const handleDeclineClick = (alert: MeetingAlert) => {
         setDeclinePopup({ alertId: alert.id, senderName: alert.sender_name });
         setDeclineReason('not_interested');
@@ -130,12 +143,14 @@ export function MeetingAlerts() {
     const generateDeclineDraft = async () => {
         if (!declinePopup) return;
         const reasonText = declineReason === 'not_interested' ? "I'm not interested in this meeting"
-            : declineReason === 'change_timing' ? "I'd like to change the timing"
-            : declineReason === 'wrong_person' ? "I'm not the right person for this"
+            : declineReason === 'change_timing' ? "I'd like to reschedule"
             : customReason || "I need to decline";
 
-        // Generate a quick draft
-        setDeclineDraft(`Hi ${declinePopup.senderName},\n\nThank you for the invitation. Unfortunately, ${reasonText.toLowerCase()}.\n\nBest regards`);
+        if (declineReason === 'not_interested') {
+            setDeclineDraft("This will ignore the meeting in your dashboard without sending any email response.");
+        } else {
+            setDeclineDraft(`Hi ${declinePopup.senderName},\n\nThank you for the invitation. Unfortunately, ${reasonText.toLowerCase()}.\n\nBest regards`);
+        }
 
         // Start 15s countdown
         setDraftCountdown(15);
@@ -156,11 +171,12 @@ export function MeetingAlerts() {
         if (countdownRef.current) clearInterval(countdownRef.current);
         try {
             setActionLoading(declinePopup.alertId);
-            const reasonText = declineReason === 'not_interested' ? "Not interested"
-                : declineReason === 'change_timing' ? "Timing doesn't work"
-                : declineReason === 'wrong_person' ? "Not the right person"
-                : customReason || "Declined";
-            await api.post(`/meetings/${declinePopup.alertId}/decline`, { reason: reasonText });
+            if (declineReason === 'not_interested') {
+                await api.post(`/meetings/${declinePopup.alertId}/dismiss`);
+            } else {
+                const reasonText = "Could you please reschedule to a different time?";
+                await api.post(`/meetings/${declinePopup.alertId}/decline`, { reason: reasonText });
+            }
             setAlerts(prev => prev.filter(a => a.id !== declinePopup.alertId));
             setDeclinePopup(null);
             setDeclineDraft(null);
@@ -188,10 +204,7 @@ export function MeetingAlerts() {
         setDraftCountdown(0);
     };
 
-    const handleRescheduleConflict = () => {
-        // For now dismiss the conflict popup — the user can use "Suggest Time" from the meeting detail
-        setConflictPopup(null);
-    };
+
 
     if (loading && alerts.length === 0) {
         return null; // silent loading
@@ -285,7 +298,7 @@ export function MeetingAlerts() {
                     <div className="absolute inset-0" onClick={() => setConflictPopup(null)} />
                     <div className="relative glass-panel p-6 max-w-md w-full border-amber-500/30 shadow-[0_0_30px_rgba(245,166,35,0.1)]">
                         <h3 className="text-lg font-semibold text-amber-400 flex items-center gap-2 mb-4">
-                            <AlertTriangle className="w-5 h-5" /> Schedule Conflict
+                            <AlertTriangle className="w-5 h-5" /> Already Scheduled Meeting
                         </h3>
                         <p className="text-sm text-white/80 mb-3">
                             You have a conflicting event:
@@ -296,23 +309,35 @@ export function MeetingAlerts() {
                                 {new Date(conflictPopup.conflict.start).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — {new Date(conflictPopup.conflict.end).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                             </p>
                         </div>
-                        <p className="text-xs text-white/60 mb-4">Accept the new meeting anyway? You can reschedule the conflicting event.</p>
-                        <div className="flex items-center gap-2">
+                        <p className="text-xs text-white/60 mb-4">How would you like to handle this conflict?</p>
+                        <div className="flex flex-col gap-2">
                             <button
-                                onClick={() => doAccept(conflictPopup.alertId)}
-                                className="flex-1 py-2 px-3 bg-nexus-primary/20 hover:bg-nexus-primary/30 text-nexus-primary text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                onClick={() => handleResolveConflict(conflictPopup.alertId, 'reschedule_old')}
+                                className="w-full py-2 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                             >
-                                <Check className="w-4 h-4" /> Accept Anyway
+                                <RefreshCw className="w-4 h-4" /> Reschedule Old Meeting
                             </button>
                             <button
-                                onClick={handleRescheduleConflict}
-                                className="flex-1 py-2 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                onClick={() => handleResolveConflict(conflictPopup.alertId, 'reschedule_new')}
+                                className="w-full py-2 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                             >
-                                <RefreshCw className="w-4 h-4" /> Reschedule Old
+                                <RefreshCw className="w-4 h-4" /> Reschedule New Meeting
+                            </button>
+                            <button
+                                onClick={() => handleResolveConflict(conflictPopup.alertId, 'remove_old')}
+                                className="w-full py-2 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                <X className="w-4 h-4" /> Remove Old Meeting
+                            </button>
+                            <button
+                                onClick={() => handleResolveConflict(conflictPopup.alertId, 'keep_both')}
+                                className="w-full py-2 px-3 bg-nexus-primary/20 hover:bg-nexus-primary/30 text-nexus-primary text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                <Check className="w-4 h-4" /> Keep Both
                             </button>
                             <button
                                 onClick={() => setConflictPopup(null)}
-                                className="py-2 px-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors"
+                                className="w-full py-2 px-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors"
                             >
                                 Cancel
                             </button>
@@ -335,10 +360,8 @@ export function MeetingAlerts() {
                                 <p className="text-sm text-white/70 mb-4">Why are you declining?</p>
                                 <div className="flex flex-col gap-2 mb-4">
                                     {[
-                                        { key: 'not_interested' as DeclineReason, label: 'Not interested' },
-                                        { key: 'change_timing' as DeclineReason, label: 'Change timing' },
-                                        { key: 'wrong_person' as DeclineReason, label: "I'm not the right person" },
-                                        { key: 'custom' as DeclineReason, label: 'Custom reason' },
+                                        { key: 'change_timing' as DeclineReason, label: 'Reschedule (Ask for new time)' },
+                                        { key: 'not_interested' as DeclineReason, label: 'Reject (Ignore meeting)' },
                                     ].map(opt => (
                                         <button
                                             key={opt.key}
@@ -390,7 +413,7 @@ export function MeetingAlerts() {
                                         className="flex-1 py-2 px-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
                                     >
                                         {actionLoading === declinePopup.alertId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                        Send Decline
+                                        {declineReason === 'not_interested' ? "Ignore Meeting" : "Send Decline"}
                                     </button>
                                     <button onClick={cancelDecline} className="py-2 px-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors">
                                         Don't Send

@@ -125,7 +125,7 @@ async def check_calendar_availability(
                 timeMax=window_end.isoformat(),
                 singleEvents=True,
                 orderBy="startTime",
-                fields="items(id,summary,start,end,status)",
+                fields="items(id,summary,start,end,status,organizer)",
             ).execute()
 
         events_result = await asyncio.to_thread(_fetch_events)
@@ -133,9 +133,11 @@ async def check_calendar_availability(
         events = events_result.get("items", [])
         return [
             {
+                "id": e.get("id"),
                 "title": e.get("summary", "Untitled"),
                 "start": e["start"].get("dateTime", e["start"].get("date", "")),
                 "end": e["end"].get("dateTime", e["end"].get("date", "")),
+                "organizer_email": e.get("organizer", {}).get("email", ""),
             }
             for e in events
             if e.get("status") != "cancelled"
@@ -173,9 +175,11 @@ def determine_availability(
             if event_start < proposed_end and event_end > proposed_start:
                 has_direct_overlap = True
                 conflicts.append({
+                    "id": event.get("id"),
                     "title": event["title"],
                     "start": event_start,
                     "end": event_end,
+                    "organizer_email": event.get("organizer_email"),
                 })
         except (ValueError, KeyError):
             continue
@@ -279,9 +283,11 @@ async def process_meeting_invitation(
         "availability": availability_result["status"],
         "conflict_events": [
             {
+                "id": c.get("id"),
                 "title": c["title"],
                 "start": c["start"] if isinstance(c["start"], datetime) else dateutil_parser.parse(str(c["start"])),
                 "end": c["end"] if isinstance(c["end"], datetime) else dateutil_parser.parse(str(c["end"])),
+                "organizer_email": c.get("organizer_email"),
             }
             for c in availability_result["conflicts"]
         ],

@@ -150,9 +150,11 @@ class EmailInDB(BaseModel):
 
 class ConflictEvent(BaseModel):
     """A conflicting Google Calendar event."""
+    id: Optional[str] = None
     title: str
     start: datetime
     end: datetime
+    organizer_email: Optional[str] = None
 
 
 class MeetingAlertInDB(BaseModel):
@@ -203,6 +205,10 @@ class MeetingDeclineRequest(BaseModel):
 
 class MeetingDeclineResponse(BaseModel):
     reply_preview: str
+
+
+class MeetingResolveConflictRequest(BaseModel):
+    action: str  # keep_both, reschedule_old, reschedule_new, remove_old
 
 
 class MeetingSuggestRequest(BaseModel):

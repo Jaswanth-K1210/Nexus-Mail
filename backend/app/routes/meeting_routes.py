@@ -9,7 +9,7 @@ import structlog
 from app.routes.middleware import get_current_user
 from app.core.database import get_database
 from app.services.meeting_service import MeetingService
-from app.models.schemas import MeetingDeclineRequest, MeetingSuggestRequest
+from app.models.schemas import MeetingDeclineRequest, MeetingSuggestRequest, MeetingResolveConflictRequest
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 meeting_service = MeetingService()
@@ -81,6 +81,39 @@ async def accept_meeting(alert_id: str, user: dict = Depends(get_current_user)):
         )
     except Exception as e:
         logger.error("Unexpected error accepting meeting", user_id=user["user_id"], alert_id=alert_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error. Please try again.",
+        )
+
+
+@router.post("/{alert_id}/resolve-conflict")
+async def resolve_conflict(
+    alert_id: str,
+    body: MeetingResolveConflictRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Resolve a meeting conflict.
+    """
+    try:
+        result = await meeting_service.resolve_conflict(
+            alert_id, user["user_id"], body.action
+        )
+        return result
+    except ValueError as e:
+        logger.warning("Validation error resolving conflict", user_id=user["user_id"], alert_id=alert_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except PermissionError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Alert does not belong to this user",
+        )
+    except Exception as e:
+        logger.error("Unexpected error resolving conflict", user_id=user["user_id"], alert_id=alert_id, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error. Please try again.",

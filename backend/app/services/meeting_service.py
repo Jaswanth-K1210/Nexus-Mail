@@ -339,6 +339,78 @@ class MeetingService:
 
         return {"status": "dismissed"}
 
+    async def resolve_conflict(self, alert_id: str, user_id: str, action: str) -> dict:
+        """
+        Handle conflict resolution. 
+        action can be 'keep_both', 'reschedule_old', 'reschedule_new', 'remove_old'
+        """
+        db = get_database()
+
+        alert = await db.meeting_alerts.find_one({"_id": ObjectId(alert_id)})
+        if not alert:
+            raise ValueError("Meeting alert not found")
+        if alert["user_id"] != user_id:
+            raise PermissionError("Alert does not belong to this user")
+
+        if action == "keep_both":
+            return await self.accept_meeting(alert_id, user_id)
+            
+        elif action == "reschedule_new":
+            return await self.decline_meeting(alert_id, user_id, "I have a sudden conflict at that time. Could we please reschedule? Please suggest another time that works for you.")
+            
+        elif action == "remove_old" or action == "reschedule_old":
+            if alert.get("conflict_events"):
+                conflict = alert["conflict_events"][0]
+                conflict_id = conflict.get("id")
+                conflict_organizer = conflict.get("organizer_email")
+                conflict_title = conflict.get("title", "Unknown")
+                
+                credentials = await self.auth_service.get_user_credentials(user_id)
+                if credentials and conflict_id:
+                    service = build("calendar", "v3", credentials=credentials)
+                    try:
+                        if action == "reschedule_old":
+                            # Check if we are the organizer
+                            event = service.events().get(calendarId='primary', eventId=conflict_id).execute()
+                            attendees = event.get('attendees', [])
+                            user = await db.users.find_one({"_id": ObjectId(user_id)})
+                            user_email = user.get("email") if user else None
+                            
+                            is_organizer = True
+                            if event.get('organizer', {}).get('email') and user_email and event['organizer']['email'] != user_email:
+                                is_organizer = False
+                            
+                            if is_organizer:
+                                service.events().delete(calendarId='primary', eventId=conflict_id, sendUpdates='all').execute()
+                            else:
+                                for att in attendees:
+                                    if att.get('email') == user_email:
+                                        att['responseStatus'] = 'declined'
+                                event['attendees'] = attendees
+                                service.events().update(calendarId='primary', eventId=conflict_id, body=event, sendUpdates='all').execute()
+                                
+                                if conflict_organizer:
+                                    try:
+                                        await self.gmail_service.send_reply(
+                                            user_id=user_id,
+                                            to_email=conflict_organizer,
+                                            subject=f"Reschedule: {conflict_title}",
+                                            body=f"Hi,\n\nI have a sudden conflict for our meeting '{conflict_title}'. Could we please reschedule it to a later time?\n\nBest regards",
+                                            thread_id=None
+                                        )
+                                    except Exception as e:
+                                        logger.warning("Failed to send reschedule email", error=str(e))
+                                
+                        elif action == "remove_old":
+                            service.events().delete(calendarId='primary', eventId=conflict_id, sendUpdates='none').execute()
+                    except Exception as e:
+                        logger.warning("Failed to modify old google calendar event", error=str(e))
+                        
+            return await self.accept_meeting(alert_id, user_id)
+            
+        else:
+            raise ValueError(f"Unknown action {action}")
+
     async def get_upcoming_events(self, user_id: str, max_results: int = 15) -> list[dict]:
         """Fetch the user's true upcoming schedule directly from Google Calendar."""
         credentials = await self.auth_service.get_user_credentials(user_id)
