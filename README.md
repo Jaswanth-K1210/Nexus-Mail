@@ -6,6 +6,12 @@
   **The AI-Powered Open Source Email Workspace.**<br>
   *A privacy-first, zero-data retention command center for your inbox.*
 
+  <br>
+  <video src="https://github.com/Jaswanth-K1210/Nexus-Mail/raw/main/demo.mov" controls="controls" width="800"></video>
+  <br>
+  [Watch the Screen Recording](demo.mov)
+  <br>
+
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
   [![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)](https://fastapi.tiangolo.com/)
   [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
