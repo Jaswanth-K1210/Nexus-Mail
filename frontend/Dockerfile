@@ -10,6 +10,9 @@ RUN npm install
 # Copy the rest of the frontend code
 COPY . .
 
+# Set production API URL (uses relative path, proxied by nginx)
+ENV VITE_API_URL=/api
+
 # Build the application
 RUN npm run build
 
