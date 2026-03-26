@@ -33,9 +33,13 @@
 
 - 🧠 **AI Priority Triage:** Automatically scores and splits emails into a "Priority Inbox" (investors, clients, team) and "Other Inbox" (receipts, newsletters).
 - ⏱️ **Mail Specialist Timeline:** Extracts deadlines and action items directly from email bodies and merges them with your upcoming Google Calendar events.
+- 📋 **Smart Task Extraction:** AI-powered extraction of tasks, deadlines, and action items from emails — surfaced directly in the dashboard.
+- 📅 **Meeting Intelligence:** Detects meeting invitations with high accuracy, auto-dismisses past meetings, and lets you accept with or without sending a reply.
 - 💨 **Sub-Second AI via Groq:** Uses highly-optimized plain-text KV extraction prompts to process incoming emails with < 1s latency at a fraction of standard JSON LLM token costs.
 - 🛡️ **Zero-Data Retention Policy:** Aggressively drops HTML/Text payloads from the database the moment AI processing concludes. Keep the intelligence, drop the bulk.
 - 🤖 **Draft-First Capabilities:** Automatically generate warm, contextual replies to meeting invites and standard emails using your custom tone profile.
+- 🔐 **Silent Token Refresh:** JWT tokens auto-refresh in the background — no unexpected logouts during long sessions.
+- ⌨️ **Command Palette:** Quick-access keyboard shortcut palette for navigating the workspace.
 
 ---
 
@@ -50,14 +54,16 @@ graph LR
     C -->|Extract KV Data| D[(MongoDB)]
     D -->|Purge Payload| D
     D --> E[React / Vite Frontend]
-    F[Google Calendar API] --> E
+    F[Google Calendar API] --> B
+    B --> E
 ```
 
 ### Stack
 * **Frontend:** React, Vite, Tailwind CSS, Lucide Icons
 * **Backend:** Python, FastAPI, Motor (Async MongoDB), Celery / Redis (Optional scaling)
 * **Database:** MongoDB
-* **AI Provider:** Groq (Llama-3 8b/70b highly recommended for speed), OpenAI fallback
+* **AI Provider:** Groq (Llama-3 8b/70b highly recommended for speed), OpenRouter / OpenAI fallback
+* **Deployment:** Docker Compose, Nginx with HTTPS (Let's Encrypt)
 
 ---
 
@@ -94,6 +100,13 @@ npm run dev
 ```
 
 Your completely private AI assistant is now running at `http://localhost:5173`.
+
+### 4. Docker Deployment (Production)
+```bash
+# Build and run with Docker Compose
+docker compose up -d --build
+```
+The app will be available at `https://your-domain.com`. Make sure to configure your `.env` and SSL certificates (Let's Encrypt) before deploying.
 
 ---
 
