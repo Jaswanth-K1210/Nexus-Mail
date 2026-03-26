@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Clock, Calendar, CheckSquare, Brain, Home, Inbox, Sparkles, Mail, TrendingUp, Shield, Plus, Trash2, Command, X } from 'lucide-react';
+import { Clock, Calendar, CheckSquare, Brain, Home, Inbox, Sparkles, Mail, Shield, Plus, Trash2, Command, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api';
@@ -50,6 +50,10 @@ export default function Dashboard() {
     const [newTodo, setNewTodo] = useState('');
     const [todoOpen, setTodoOpen] = useState(false);
 
+    // Email-derived tasks (deadlines, assignments, hackathons, etc.)
+    interface EmailTask { id: string; text: string; sender: string; subject: string; receivedAt: string; status: string; }
+    const [emailTasks, setEmailTasks] = useState<EmailTask[]>([]);
+
     const addTodo = () => {
         const text = newTodo.trim();
         if (!text) return;
@@ -81,11 +85,26 @@ export default function Dashboard() {
 
             await api.get('/auth/consent-status');
 
-            const [emailsRes, draftsRes, roleRes] = await Promise.all([
+            const [emailsRes, draftsRes, roleRes, timelineRes] = await Promise.all([
                 api.get('/gmail/emails'),
                 api.get('/drafts'),
                 api.get('/tone/role').catch(() => ({ data: {} })),
+                api.get('/assistant/timeline').catch(() => ({ data: { action_items: [] } })),
             ]);
+
+            // Populate email-derived tasks
+            const items: EmailTask[] = (timelineRes.data.action_items || [])
+                .filter((a: any) => a.status === 'pending')
+                .slice(0, 15)
+                .map((a: any) => ({
+                    id: a.id,
+                    text: a.text,
+                    sender: a.source_sender || '',
+                    subject: a.source_subject || '',
+                    receivedAt: a.received_at || '',
+                    status: a.status,
+                }));
+            setEmailTasks(items);
 
             if (roleRes.data?.role_key) {
                 setUserRoleKey(roleRes.data.role_key);
@@ -172,7 +191,10 @@ export default function Dashboard() {
 
     // ─── Derived stats ───
     const NON_IMPORTANT_CATS = ['promotional', 'newsletter', 'marketing', 'social', 'transactional', 'spam', 'noreply', 'automated'];
-    const importantEmails = inbox.filter(e => !NON_IMPORTANT_CATS.includes((e.category || '').toLowerCase()) && e.priorityScore >= 35);
+    const importantEmails = inbox.filter(e => {
+        const cat = (e.category || '').toLowerCase();
+        return cat && !NON_IMPORTANT_CATS.includes(cat) && e.priorityScore >= 55;
+    });
     const riskCount = inbox.filter(e => e.riskFlags && e.riskFlags.length > 0).length;
 
     // ─── Tab config ───
@@ -199,15 +221,15 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-nexus-bg text-nexus-text p-8 flex flex-col">
+        <div className="min-h-screen bg-nexus-bg text-nexus-text p-4 sm:p-6 lg:p-8 flex flex-col">
                 <CommandPalette onAction={handleCommand} />
 
-                <header className="flex justify-between items-center mb-8">
-                    <div className="flex items-center gap-8">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 lg:mb-8 gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 lg:gap-8 w-full md:w-auto">
                     <div className="flex items-center gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-nexus-primary to-blue-400 bg-clip-text text-transparent">Nexus Workspace</h1>
-                            <p className="text-nexus-textMuted text-sm mt-1">Autonomous Email Intelligence</p>
+                            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-nexus-primary to-blue-400 bg-clip-text text-transparent">Nexus Workspace</h1>
+                            <p className="text-nexus-textMuted text-xs sm:text-sm mt-1">Autonomous Email Intelligence</p>
                         </div>
                         {userRoleKey && (() => {
                             const ROLE_MAP: Record<string, { emoji: string; label: string }> = {
@@ -376,40 +398,101 @@ export default function Dashboard() {
                                     </div>
                                 </div>
 
-                                {/* Inbox Breakdown */}
+                                {/* Tasks to Do */}
                                 <div className="glass-panel p-5 flex flex-col min-h-[300px]">
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-sm font-semibold text-nexus-text flex items-center gap-2">
-                                            <TrendingUp className="w-4 h-4 text-blue-400" /> Inbox Breakdown
+                                            <CheckSquare className="w-4 h-4 text-amber-400" /> Tasks to Do
                                         </h3>
-                                        <button onClick={() => setActiveTab('all')} className="text-[10px] text-nexus-primary hover:underline uppercase tracking-wide">View All</button>
+                                        <span className="text-[10px] font-mono text-nexus-textMuted bg-white/5 px-2 py-0.5 rounded">{pendingTodos.length + emailTasks.length} pending</span>
                                     </div>
-                                    <div className="flex flex-col gap-2.5 flex-1">
-                                        {[
-                                            { label: 'Work', color: 'bg-blue-400', cats: ['work','business','professional','important','requires_response','meeting_invitation'] },
-                                            { label: 'Personal', color: 'bg-cyan-400', cats: ['personal','family','friends'] },
-                                            { label: 'Promotions', color: 'bg-purple-400', cats: ['promotional','newsletter','marketing'] },
-                                            { label: 'Do Not Reply', color: 'bg-slate-400', cats: ['transactional','noreply','automated','social','spam'] },
-                                            { label: 'Finance / OTPs', color: 'bg-emerald-400', cats: ['bank','finance','otp','alert','security','verification'] },
-                                            { label: 'Bills', color: 'bg-rose-400', cats: ['bill','invoice','receipt','subscription'] },
-                                        ].map(row => {
-                                            const count = inbox.filter(e => row.cats.includes((e.category || '').toLowerCase())).length;
-                                            const pct = inbox.length > 0 ? Math.round((count / inbox.length) * 100) : 0;
-                                            return (
-                                                <div key={row.label} className="flex items-center gap-3">
-                                                    <span className={`w-2 h-2 rounded-full ${row.color} flex-shrink-0`} />
-                                                    <span className="text-xs text-nexus-textMuted w-28 truncate">{row.label}</span>
-                                                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                                        <div className={`h-full rounded-full ${row.color} transition-all`} style={{ width: `${pct}%` }} />
-                                                    </div>
-                                                    <span className="text-[10px] font-mono text-nexus-textMuted w-8 text-right">{count}</span>
+                                    <div className="flex flex-col gap-2 flex-1 overflow-y-auto custom-scrollbar">
+                                        {/* Email-derived tasks (from AI extraction) */}
+                                        {emailTasks.map(task => (
+                                            <div key={task.id} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-amber-500/[0.04] border border-amber-500/10 hover:border-amber-500/20 transition-colors">
+                                                <Mail className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-xs text-nexus-text truncate">{task.text}</p>
+                                                    <p className="text-[10px] text-nexus-textMuted truncate">{task.sender}{task.subject ? ` · ${task.subject}` : ''}</p>
                                                 </div>
-                                            );
-                                        })}
+                                            </div>
+                                        ))}
+                                        {/* Manual todos */}
+                                        {pendingTodos.map(todo => (
+                                            <div key={todo.id} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors border border-transparent hover:border-nexus-border group">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={false}
+                                                    onChange={() => toggleTodo(todo.id)}
+                                                    className="accent-amber-500 rounded cursor-pointer flex-shrink-0"
+                                                />
+                                                <span className="text-xs text-nexus-text flex-1 truncate">{todo.text}</span>
+                                                <button onClick={() => deleteTodo(todo.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-nexus-textMuted hover:text-red-400">
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {pendingTodos.length === 0 && emailTasks.length === 0 && (
+                                            <div className="flex flex-col items-center justify-center flex-1 gap-2 opacity-30 py-6">
+                                                <CheckSquare className="w-6 h-6 text-amber-400" />
+                                                <p className="text-xs text-nexus-textMuted">No tasks — you're all caught up</p>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="mt-3 pt-3 border-t border-nexus-border flex justify-between text-xs text-nexus-textMuted">
-                                        <span>Total emails</span>
-                                        <span className="font-mono font-semibold text-nexus-text">{inbox.length}</span>
+                                    <div className="mt-3 pt-3 border-t border-nexus-border">
+                                        <form onSubmit={(e) => { e.preventDefault(); addTodo(); }} className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={newTodo}
+                                                onChange={(e) => setNewTodo(e.target.value)}
+                                                placeholder="Add a task..."
+                                                className="flex-1 bg-white/5 border border-nexus-border rounded-lg px-3 py-1.5 text-xs text-nexus-text placeholder:text-nexus-textMuted/40 focus:outline-none focus:border-nexus-primary/50"
+                                            />
+                                            <button type="submit" className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                                                <Plus className="w-3.5 h-3.5" />
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                {/* Inbox Breakdown + Risk & Alerts */}
+                                <div className="glass-panel p-5 flex flex-col min-h-[200px]">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-sm font-semibold text-nexus-text flex items-center gap-2">
+                                            <Inbox className="w-4 h-4 text-blue-400" /> Inbox Breakdown
+                                        </h3>
+                                        <span className="text-[10px] font-mono text-nexus-textMuted">{inbox.length} total</span>
+                                    </div>
+                                    <div className="flex flex-col gap-2 flex-1">
+                                        {(() => {
+                                            const catCounts: Record<string, number> = {};
+                                            inbox.forEach(e => {
+                                                const cat = (e.category || 'uncategorized').toLowerCase();
+                                                catCounts[cat] = (catCounts[cat] || 0) + 1;
+                                            });
+                                            const catColors: Record<string, string> = {
+                                                important: 'bg-rose-500', requires_response: 'bg-amber-500', meeting_invitation: 'bg-blue-500',
+                                                newsletter: 'bg-purple-500', promotional: 'bg-pink-500', social: 'bg-cyan-500',
+                                                transactional: 'bg-green-500', spam: 'bg-red-500',
+                                            };
+                                            const sorted = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+                                            const maxCat = sorted.length > 0 ? sorted[0][1] : 1;
+                                            return sorted.map(([cat, count]) => (
+                                                <div key={cat} className="flex items-center gap-2">
+                                                    <span className="text-[10px] text-nexus-textMuted w-24 truncate capitalize">{cat.replace('_', ' ')}</span>
+                                                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                                                        <div className={`h-full rounded-full ${catColors[cat] || 'bg-nexus-primary'}`} style={{ width: `${(count / maxCat) * 100}%` }} />
+                                                    </div>
+                                                    <span className="text-[10px] font-mono text-nexus-textMuted w-6 text-right">{count}</span>
+                                                </div>
+                                            ));
+                                        })()}
+                                        {inbox.length === 0 && (
+                                            <div className="flex flex-col items-center justify-center flex-1 gap-2 opacity-30 py-6">
+                                                <Inbox className="w-6 h-6 text-blue-400" />
+                                                <p className="text-xs text-nexus-textMuted">No emails yet</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -445,7 +528,7 @@ export default function Dashboard() {
 
                             {/* Right column — Today's Schedule (meetings + tasks) */}
                             <div className="glass-panel h-full min-h-[620px] flex flex-col overflow-hidden border-nexus-primary/10">
-                                <div className="p-4 border-b border-white/10 bg-black/40 backdrop-blur-xl">
+                                <div className="p-4 border-b border-white/10 bg-black/40">
                                     <h3 className="font-semibold text-white/90 flex items-center gap-2 text-sm">
                                         <Calendar className="w-4 h-4 text-nexus-primary" /> Today's Schedule
                                     </h3>

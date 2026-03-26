@@ -56,7 +56,7 @@ export default function Login() {
                     transition={{ duration: 1, ease: "easeOut" }}
                     className="flex flex-col gap-6"
                 >
-                    <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 w-max backdrop-blur-md">
+                    <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 w-max">
                         <Sparkles className="w-4 h-4 text-nexus-primary" />
                         <span className="text-sm font-medium tracking-wide text-white/80">Nexus Intelligence Engine v3.1</span>
                     </div>

@@ -171,6 +171,8 @@ class AIProvider:
         """Get the model name for a given provider."""
         if provider == "ollama":
             return self.settings.ollama_model
+        if provider == "openai":
+            return getattr(self.settings, "openrouter_model", None) or "meta-llama/llama-3.3-70b-instruct"
         return self.settings.ai_model
 
     async def _call_provider(

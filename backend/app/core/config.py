@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     ai_routing_enabled: bool = False  # When True, routes tasks to optimal provider
 
     # --- Meeting Intelligence ---
-    meeting_detection_confidence_threshold: float = 0.75
+    meeting_detection_confidence_threshold: float = 0.85
     suggested_slots_count: int = 3
 
     # --- Notification ---
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     # --- Security / JWT ---
     jwt_secret_key: str = Field(..., min_length=32)
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 60
+    jwt_access_token_expire_minutes: int = 10080  # 7 days
     encryption_key: str = ""  # AES-256 key, base64 encoded (REQUIRED for production)
 
     # --- CORS ---

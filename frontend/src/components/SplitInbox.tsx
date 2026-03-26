@@ -589,7 +589,7 @@ export function SplitInbox({ inbox, mode, onEmailRead, roleKey }: SplitInboxProp
             />
 
             {/* Panel Header */}
-            <div className="px-4 py-3 border-b border-nexus-border flex items-center justify-between bg-nexus-bg/80 backdrop-blur-xl z-10 flex-shrink-0">
+            <div className="px-4 py-3 border-b border-nexus-border flex items-center justify-between bg-nexus-bg/80 z-10 flex-shrink-0">
                 <h3 className={`font-semibold flex items-center gap-2 ${isImportant ? 'text-nexus-primary' : 'text-nexus-text'}`}>
                     {isImportant
                         ? <><span className="w-2 h-2 rounded-full bg-nexus-primary animate-pulse" /><Sparkles className="w-4 h-4" /> Important</>

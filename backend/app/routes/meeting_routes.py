@@ -9,7 +9,7 @@ import structlog
 from app.routes.middleware import get_current_user
 from app.core.database import get_database
 from app.services.meeting_service import MeetingService
-from app.models.schemas import MeetingDeclineRequest, MeetingSuggestRequest, MeetingResolveConflictRequest
+from app.models.schemas import MeetingAcceptRequest, MeetingDeclineRequest, MeetingSuggestRequest, MeetingResolveConflictRequest
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 meeting_service = MeetingService()
@@ -60,13 +60,14 @@ async def get_upcoming_events(user: dict = Depends(get_current_user)):
 
 
 @router.post("/{alert_id}/accept")
-async def accept_meeting(alert_id: str, user: dict = Depends(get_current_user)):
+async def accept_meeting(alert_id: str, body: MeetingAcceptRequest = MeetingAcceptRequest(), user: dict = Depends(get_current_user)):
     """
     Accept a meeting invitation.
     Per v3.1 spec section 5.2: sends reply, creates calendar event.
+    If skip_reply=true, only adds to calendar without sending email reply.
     """
     try:
-        result = await meeting_service.accept_meeting(alert_id, user["user_id"])
+        result = await meeting_service.accept_meeting(alert_id, user["user_id"], skip_reply=body.skip_reply)
         return result
     except ValueError as e:
         logger.warning("Validation error accepting meeting", user_id=user["user_id"], alert_id=alert_id, error=str(e))

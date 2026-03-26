@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Calendar, Check, X, Clock, Loader2, AlertTriangle, RefreshCw, Send } from 'lucide-react';
+import { Calendar, Check, X, Clock, Loader2, AlertTriangle, RefreshCw, Send, CalendarPlus, Mail } from 'lucide-react';
 import api from '../api';
 
 export interface MeetingAlert {
@@ -46,6 +46,12 @@ export function MeetingAlerts() {
     const [conflictPopup, setConflictPopup] = useState<{
         alertId: string;
         conflict: { title: string; start: string; end: string };
+    } | null>(null);
+
+    // Accept popup state (with reply / without reply)
+    const [acceptPopup, setAcceptPopup] = useState<{
+        alertId: string;
+        senderName: string;
     } | null>(null);
 
     // Decline flow state
@@ -98,20 +104,22 @@ export function MeetingAlerts() {
         return () => clearInterval(interval);
     }, [fetchAlerts]);
 
-    const handleAccept = async (alert: MeetingAlert) => {
+    const handleAccept = (alert: MeetingAlert) => {
         // If user is busy, show conflict popup first
         if (alert.availability === 'busy' && alert.conflicts.length > 0) {
             setConflictPopup({ alertId: alert.id, conflict: alert.conflicts[0] });
             return;
         }
-        await doAccept(alert.id);
+        // Show with reply / without reply popup
+        setAcceptPopup({ alertId: alert.id, senderName: alert.sender_name });
     };
 
-    const doAccept = async (alertId: string) => {
+    const doAccept = async (alertId: string, skipReply: boolean = false) => {
         try {
             setActionLoading(alertId);
+            setAcceptPopup(null);
             setConflictPopup(null);
-            await api.post(`/meetings/${alertId}/accept`);
+            await api.post(`/meetings/${alertId}/accept`, { skip_reply: skipReply });
             setAlerts(prev => prev.filter(a => a.id !== alertId));
         } catch (error) {
             console.error("Failed to accept meeting", error);
@@ -294,7 +302,7 @@ export function MeetingAlerts() {
 
             {/* ─── Conflict Popup (busy user approves new meeting) ─── */}
             {conflictPopup && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60">
                     <div className="absolute inset-0" onClick={() => setConflictPopup(null)} />
                     <div className="relative glass-panel p-6 max-w-md w-full border-amber-500/30 shadow-[0_0_30px_rgba(245,166,35,0.1)]">
                         <h3 className="text-lg font-semibold text-amber-400 flex items-center gap-2 mb-4">
@@ -348,7 +356,7 @@ export function MeetingAlerts() {
 
             {/* ─── Decline Popup (reason selection + draft preview) ─── */}
             {declinePopup && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60">
                     <div className="absolute inset-0" onClick={cancelDecline} />
                     <div className="relative glass-panel p-6 max-w-md w-full border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]">
                         <h3 className="text-lg font-semibold text-red-400 flex items-center gap-2 mb-4">
@@ -430,6 +438,43 @@ export function MeetingAlerts() {
                                 )}
                             </>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Accept Popup (with reply / without reply) ─── */}
+            {acceptPopup && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60">
+                    <div className="absolute inset-0" onClick={() => setAcceptPopup(null)} />
+                    <div className="relative glass-panel p-6 max-w-sm w-full border-nexus-primary/30 shadow-[0_0_30px_rgba(177,158,239,0.1)]">
+                        <h3 className="text-lg font-semibold text-nexus-primary flex items-center gap-2 mb-4">
+                            <Check className="w-5 h-5" /> Accept Meeting
+                        </h3>
+                        <p className="text-sm text-white/70 mb-5">How would you like to accept this meeting?</p>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                disabled={actionLoading === acceptPopup.alertId}
+                                onClick={() => doAccept(acceptPopup.alertId, false)}
+                                className="w-full py-2.5 px-4 bg-nexus-primary/15 hover:bg-nexus-primary/25 text-nexus-primary text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                {actionLoading === acceptPopup.alertId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                                With Reply — Send confirmation email
+                            </button>
+                            <button
+                                disabled={actionLoading === acceptPopup.alertId}
+                                onClick={() => doAccept(acceptPopup.alertId, true)}
+                                className="w-full py-2.5 px-4 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                {actionLoading === acceptPopup.alertId ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarPlus className="w-4 h-4" />}
+                                Without Reply — Just add to calendar
+                            </button>
+                            <button
+                                onClick={() => setAcceptPopup(null)}
+                                className="w-full py-2 px-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm rounded-lg transition-colors mt-1"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

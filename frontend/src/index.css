@@ -35,7 +35,7 @@
 
   /* Apple-inspired Glassmorphism Panel */
   .glass-panel {
-    @apply bg-nexus-card border border-nexus-border backdrop-blur-glass shadow-glass rounded-2xl transition-all duration-300;
+    @apply bg-nexus-card border border-nexus-border shadow-glass rounded-2xl transition-all duration-300;
   }
 
   .glass-panel:hover {
@@ -44,7 +44,7 @@
 
   /* Glass Button */
   .glass-button {
-    @apply relative overflow-hidden bg-white/10 hover:bg-white/15 text-nexus-text font-medium py-3 px-6 rounded-full border border-nexus-border backdrop-blur-md transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2;
+    @apply relative overflow-hidden bg-white/10 hover:bg-white/15 text-nexus-text font-medium py-3 px-6 rounded-full border border-nexus-border transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2;
   }
 
   .light-theme .glass-button {

@@ -199,6 +199,9 @@ class MeetingAcceptResponse(BaseModel):
     event_time: str
 
 
+class MeetingAcceptRequest(BaseModel):
+    skip_reply: bool = False  # True = add to calendar only, no email reply
+
 class MeetingDeclineRequest(BaseModel):
     reason: Optional[str] = None
 

@@ -154,7 +154,7 @@ export function MailSpecialistTimeline({ fullWidth = false }: { fullWidth?: bool
 
     return (
         <div className={`glass-panel h-full flex flex-col overflow-hidden relative shadow-[0_0_15px_rgba(177,158,239,0.05)] border-nexus-primary/10 ${fullWidth ? 'w-full' : 'w-full xl:w-[450px]'}`}>
-            <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-black/40 backdrop-blur-xl z-10">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-black/40 z-10">
                 <h3 className="font-semibold text-white/90 flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-nexus-primary" />
                     Action Center & Timeline

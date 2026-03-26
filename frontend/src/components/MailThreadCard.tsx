@@ -50,7 +50,7 @@ export function MailThreadCard({ thread, onClick, isSelected = false }: MailThre
             onClick={onClick}
             className={clsx(
                 "cursor-pointer group relative p-4 rounded-xl transition-all duration-300",
-                "bg-nexus-card border shadow-sm backdrop-blur-md",
+                "bg-nexus-card border shadow-sm",
                 thread.isUnread ? "border-nexus-primary/30 bg-nexus-cardHover" : "border-nexus-border",
                 isSelected
                     ? "border-nexus-primary shadow-[0_0_15px_rgba(177,158,239,0.3)] bg-nexus-primary/10 ring-1 ring-nexus-primary z-10"

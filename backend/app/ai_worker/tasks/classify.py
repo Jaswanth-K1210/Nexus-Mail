@@ -33,6 +33,12 @@ For meeting detection, look for AT LEAST TWO of these signals:
 - Body asks about availability: "are you available", "does this time work", "when are you free"
 - Email has a .ics calendar attachment
 
+NOT a meeting invitation (classify as something else):
+- Competition deadlines, hackathon registrations, challenge submissions (these are tasks/events, not meetings)
+- Event announcements, webinars, conferences with no personal invite or RSVP
+- Emails that mention dates but are about deadlines, due dates, or launch dates — not scheduled calls
+- Mass emails about programs, courses, or opportunities with a start date
+
 IMPORTANT: If the email has a .ics attachment, ALWAYS classify as "meeting_invitation" regardless of other signals.
 
 Analyze the email and also provide a Suggested Action. It must be EXACTLY ONE of these 4 verdicts:

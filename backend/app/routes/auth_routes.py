@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, status, Depends
 from app.services.auth_service import AuthService
 from app.models.schemas import AuthCallbackRequest
 from app.routes.middleware import get_current_user
+from app.core.security import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 auth_service = AuthService()
@@ -69,6 +70,15 @@ async def google_callback(request: Request, body: AuthCallbackRequest):
 async def get_me(user: dict = Depends(get_current_user)):
     """Return the current user's full profile."""
     return await auth_service.get_user_profile(user["user_id"])
+
+
+@router.post("/refresh")
+async def refresh_token(user: dict = Depends(get_current_user)):
+    """Issue a fresh JWT if the current token is still valid."""
+    new_token = create_access_token(
+        data={"sub": user["user_id"], "email": user.get("email", "")}
+    )
+    return {"access_token": new_token, "token_type": "bearer"}
 
 
 @router.get("/consent-status")

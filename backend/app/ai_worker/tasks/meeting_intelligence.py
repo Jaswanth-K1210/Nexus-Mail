@@ -47,7 +47,9 @@ Rules:
 - If only a day is mentioned without time, default to 10:00 AM
 - Detect meeting platforms from URLs: meet.google.com → google_meet, zoom.us → zoom, teams.microsoft.com → teams
 - If timezone is not explicit, try to infer from context or default to UTC
-- Duration: look for phrases like "30 min", "1 hour", "45 minutes". Default to 60."""
+- Duration: look for phrases like "30 min", "1 hour", "45 minutes". Default to 60.
+- Set confidence_score LOW (below 0.3) for: competition deadlines, hackathon registrations, event announcements, webinar broadcasts, course start dates, challenge submissions. These are NOT meetings.
+- A real meeting invite is a 1-on-1 or small-group scheduled call/sync with a specific time proposed for the recipient to attend."""
 
 
 async def extract_meeting_data(email_body: str, sender: str, subject: str) -> dict:

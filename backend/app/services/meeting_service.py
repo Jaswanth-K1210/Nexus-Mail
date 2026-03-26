@@ -31,13 +31,13 @@ class MeetingService:
         self.auth_service = AuthService()
         self.gmail_service = GmailService()
 
-    async def accept_meeting(self, alert_id: str, user_id: str) -> dict:
+    async def accept_meeting(self, alert_id: str, user_id: str, skip_reply: bool = False) -> dict:
         """
         Accept Flow — v3.1 spec section 5.2 (10 steps).
         1. Verify alert is pending + belongs to user
         2. Fetch user tone profile + original email
-        3. Generate acceptance reply via AI
-        4. Send reply via Gmail API
+        3. Generate acceptance reply via AI (unless skip_reply)
+        4. Send reply via Gmail API (unless skip_reply)
         5. Create Google Calendar event
         6. Update meeting_alert status
         """
@@ -64,23 +64,24 @@ class MeetingService:
         # BUG FIX: alert["email_id"] is a string, need ObjectId for MongoDB _id lookup
         email_doc = await db.emails.find_one({"_id": ObjectId(alert["email_id"])})
 
-        # Step 3: Generate acceptance reply
-        reply_text = await self._generate_accept_reply(
-            sender_name=alert["sender_name"],
-            proposed_time=alert["proposed_datetime"],
-            subject=email_doc.get("subject", "") if email_doc else "",
-            tone_profile=tone_profile,
-        )
-
-        # Step 4: Send the reply via Gmail
-        if email_doc:
-            await self.gmail_service.send_reply(
-                user_id=user_id,
-                to_email=alert["sender_email"],
-                subject=email_doc.get("subject", "Meeting Confirmation"),
-                body=reply_text,
-                thread_id=email_doc.get("thread_id"),
+        # Step 3 & 4: Generate and send acceptance reply (unless skip_reply)
+        reply_text = ""
+        if not skip_reply:
+            reply_text = await self._generate_accept_reply(
+                sender_name=alert["sender_name"],
+                proposed_time=alert["proposed_datetime"],
+                subject=email_doc.get("subject", "") if email_doc else "",
+                tone_profile=tone_profile,
             )
+
+            if email_doc:
+                await self.gmail_service.send_reply(
+                    user_id=user_id,
+                    to_email=alert["sender_email"],
+                    subject=email_doc.get("subject", "Meeting Confirmation"),
+                    body=reply_text,
+                    thread_id=email_doc.get("thread_id"),
+                )
 
         # Step 5: Create Google Calendar event
         calendar_event_id = await self._create_calendar_event(
@@ -100,7 +101,7 @@ class MeetingService:
                 "$set": {
                     "status": "accepted",
                     "user_response": "yes",
-                    "reply_sent": True,
+                    "reply_sent": not skip_reply,
                     "calendar_event_id": calendar_event_id,
                     "resolved_at": datetime.now(timezone.utc),
                 }
@@ -273,12 +274,24 @@ class MeetingService:
         return {"available_slots": slots}
 
     async def get_pending_alerts(self, user_id: str) -> list[dict]:
-        """Get all pending meeting alerts for a user, enriched with email subject and conflict info."""
+        """Get all pending meeting alerts for a user, enriched with email subject and conflict info.
+        Auto-dismisses alerts whose proposed time has already passed."""
         db = get_database()
+        now = datetime.now(timezone.utc)
+
+        # Auto-dismiss past meetings
+        await db.meeting_alerts.update_many(
+            {
+                "user_id": user_id,
+                "status": "pending",
+                "proposed_datetime": {"$lt": now},
+            },
+            {"$set": {"status": "dismissed", "resolved_at": now}},
+        )
 
         alerts = []
         cursor = db.meeting_alerts.find(
-            {"user_id": user_id, "status": "pending"}
+            {"user_id": user_id, "status": "pending", "proposed_datetime": {"$gte": now}}
         ).sort("created_at", -1)
 
         async for alert in cursor:

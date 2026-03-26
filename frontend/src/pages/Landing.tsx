@@ -28,7 +28,7 @@ export default function Landing() {
             <div className="fixed inset-0 z-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-[rgba(130,110,234,0.05)] via-transparent to-transparent opacity-60 pointer-events-none" />
 
             {/* Navbar */}
-            <nav className="relative z-20 w-full bg-black/50 backdrop-blur-xl border-b border-white/10 px-6 py-4">
+            <nav className="relative z-20 w-full bg-black/50 border-b border-white/10 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-nexus-primary to-blue-500 shadow-[0_0_15px_rgba(177,158,239,0.5)]"></div>
@@ -51,7 +51,7 @@ export default function Landing() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
-                    className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 w-max backdrop-blur-md mb-8"
+                    className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 w-max mb-8"
                 >
                     <Sparkles className="w-4 h-4 text-nexus-primary" />
                     <span className="text-sm font-medium tracking-wide text-white/80">The Open Source Architecture of Empathy</span>

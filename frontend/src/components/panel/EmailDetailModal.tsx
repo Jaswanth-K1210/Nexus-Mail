@@ -181,7 +181,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60">
 
                     {/* Background click to close */}
                     <div className="absolute inset-0" onClick={onClose} />
@@ -202,7 +202,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                         ) : (
                             <>
                                 {/* Header */}
-                                <div className="flex items-start justify-between p-6 border-b border-nexus-border backdrop-blur-3xl bg-white/5">
+                                <div className="flex items-start justify-between p-6 border-b border-nexus-border bg-white/5">
                                     <div className="flex gap-4">
                                         <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-nexus-primary to-blue-500 flex items-center justify-center shadow-lg text-lg font-bold text-white uppercase">
                                             {email.sender_name?.charAt(0) || email.sender_email?.charAt(0) || 'U'}
@@ -412,7 +412,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
 
                                 {/* Footer: Draft & Compose Area — hidden for donotreply, otps, promotions, meetings */}
                                 {!showDraftButton ? null : !draft ? (
-                                    <div className="p-4 border-t border-nexus-border bg-white/5 backdrop-blur-xl flex justify-center items-center">
+                                    <div className="p-4 border-t border-nexus-border bg-white/5 flex justify-center items-center">
                                         <button
                                             onClick={handleGenerateDraft}
                                             disabled={generating}
@@ -425,7 +425,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="p-4 border-t border-nexus-border bg-white/5 backdrop-blur-xl">
+                                    <div className="p-4 border-t border-nexus-border bg-white/5">
                                         <div className="glass-panel p-4 border border-nexus-primary/30 shadow-[0_0_20px_rgba(177,158,239,0.1)] focus-within:border-nexus-primary transition-all">
                                             <h4 className="text-xs font-mono font-bold text-nexus-primary uppercase tracking-wider mb-3 flex items-center gap-2">
                                                 <CornerUpLeft className="w-3 h-3" /> AI Generated Draft
