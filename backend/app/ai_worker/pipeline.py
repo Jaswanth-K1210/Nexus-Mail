@@ -39,8 +39,8 @@ logger = structlog.get_logger(__name__)
 class ProcessingPipeline:
     """
     Orchestrates the complete AI processing pipeline for emails.
-    Processes unprocessed emails from MongoDB, runs all 6 AI tasks,
-    and updates the email document with results.
+    v4.0: Delegates to multi-agent orchestrator (LangGraph-inspired execution graph).
+    Falls back to legacy pipeline on orchestrator failure for zero-downtime migration.
     """
 
     def __init__(self):
@@ -51,6 +51,7 @@ class ProcessingPipeline:
         self.priority_service = PriorityService()
         self.gmail_service = GmailService()
         self.auto_reply_service = AutoReplyService()
+        self._use_orchestrator = True  # Feature flag for agentic pipeline
 
     async def process_email(self, email_id: str, user_id: str) -> dict:
         """
@@ -58,6 +59,7 @@ class ProcessingPipeline:
         Returns a summary of what was done.
         Bug #1 Fix: The Redis lock now covers the ENTIRE pipeline, preventing
         duplicate concurrent processing of the same email.
+        v4.0: Delegates to multi-agent orchestrator when enabled.
         """
         from app.core.redis_client import redis_lock
 
@@ -76,7 +78,6 @@ class ProcessingPipeline:
             # ─── Inbox Zero Feature: Bulk Unsubscriber Auto-Archive Check ───
             was_auto_archived = await self.unsub_service.apply_auto_archive_rules(user_id, email_doc)
             if was_auto_archived:
-                # Mark as processed and skip further AI processing
                 await db.emails.update_one(
                     {"_id": ObjectId(email_id)},
                     {"$set": {"is_processed": True, "processed_at": datetime.now(timezone.utc)}}
@@ -86,7 +87,6 @@ class ProcessingPipeline:
             # ─── Inbox Zero Feature: Cold Email Blocker ───
             cold_email_result = await self.cold_email_blocker.process_incoming_email(user_id, email_doc)
             if cold_email_result and cold_email_result.get("is_cold_email") and cold_email_result.get("confidence", 0) >= 0.7:
-                # If auto-archived by blocker mode, we conceptually skip further tasks
                 settings = await self.cold_email_blocker.get_blocker_settings(user_id)
                 if settings.get("mode") == "auto_archive_label":
                     await db.emails.update_one(
@@ -94,6 +94,105 @@ class ProcessingPipeline:
                         {"$set": {"is_processed": True, "processed_at": datetime.now(timezone.utc)}}
                     )
                     return {"status": "blocked_cold_email"}
+
+            # ─── v4.0: Multi-Agent Orchestrator ───
+            # Delegates to the agentic execution graph. Falls back to legacy pipeline on error.
+            if self._use_orchestrator:
+                try:
+                    from app.orchestrator.graph import get_email_processing_graph
+                    graph = get_email_processing_graph()
+                    orchestrator_results = await graph.execute(email_doc, user_id)
+
+                    # Extract results from orchestrator output (backward compatible)
+                    triage_out = orchestrator_results.get("classification", {})
+                    summary_out = orchestrator_results.get("summary", {})
+                    action_out = orchestrator_results.get("actions", {})
+                    risk_out = orchestrator_results.get("risks", {})
+                    meeting_result = orchestrator_results.get("meeting_intelligence")
+
+                    # Persist to DB (same format as legacy pipeline)
+                    update_data = {
+                        "is_processed": True,
+                        "processed_at": datetime.now(timezone.utc),
+                        "category": triage_out.get("category"),
+                        "severity": triage_out.get("severity"),
+                        "suggested_action": triage_out.get("suggested_action", "REVIEW ONLY"),
+                        "is_meeting_invitation": triage_out.get("is_meeting_invitation", False),
+                        "ai_summary": summary_out.get("summary"),
+                        "priority_score": orchestrator_results.get("priority_score", 50),
+                        "action_items": [
+                            {
+                                "task": item.get("action", ""),
+                                "priority": item.get("priority", "medium"),
+                                "deadline": item.get("deadline"),
+                                "type": item.get("type", "other"),
+                            }
+                            for item in action_out.get("action_items", [])
+                        ],
+                        "risk_flags": risk_out.get("risk_flags", []),
+                        # v4.0: Store agent execution metadata
+                        "agent_trace_id": orchestrator_results.get("trace_id"),
+                        "agent_reasoning": orchestrator_results.get("agent_reasoning", {}),
+                    }
+
+                    await db.emails.update_one(
+                        {"_id": ObjectId(email_id)},
+                        {"$set": update_data}
+                    )
+
+                    # Evaluate rules (same as legacy)
+                    enriched_doc = {**email_doc, **update_data}
+                    matched_rules = await self.rules_engine.evaluate_all_rules(user_id, enriched_doc)
+                    if matched_rules:
+                        for rule_match in matched_rules:
+                            try:
+                                await self.rules_engine.execute_actions(
+                                    user_id, email_id, rule_match["actions"], enriched_doc
+                                )
+                            except Exception as e:
+                                logger.warning("Rule action failed", error=str(e))
+
+                    # Mark as read on Gmail
+                    gmail_id = email_doc.get("gmail_id")
+                    if gmail_id:
+                        try:
+                            await self.gmail_service.mark_as_read_on_gmail(user_id, gmail_id)
+                        except Exception as e:
+                            logger.warning("Gmail mark-as-read failed", error=str(e))
+
+                    # Push SSE events
+                    await push_to_user(user_id, "email_processed", {
+                        "email_id": email_id,
+                        "category": triage_out.get("category"),
+                        "summary": summary_out.get("summary", "")[:100],
+                        "is_meeting": triage_out.get("is_meeting_invitation", False),
+                        "rules_matched": len(matched_rules) if matched_rules else 0,
+                        "execution_mode": "agentic",
+                        "trace_id": orchestrator_results.get("trace_id"),
+                    })
+
+                    if triage_out.get("is_meeting_invitation") and meeting_result:
+                        await push_to_user(user_id, "meeting_alert", {
+                            "email_id": email_id,
+                            "sender_name": email_doc.get("sender_name", ""),
+                            "sender_email": email_doc.get("sender_email", ""),
+                            "availability": meeting_result.get("availability", "free"),
+                            "proposed_time": str(meeting_result.get("proposed_datetime", "")),
+                        })
+
+                    orchestrator_results["status"] = "processed_agentic"
+                    return orchestrator_results
+
+                except Exception as e:
+                    logger.error(
+                        "Orchestrator failed, falling back to legacy pipeline",
+                        email_id=email_id,
+                        error=str(e),
+                    )
+                    # Fall through to legacy pipeline below
+
+            # ─── LEGACY PIPELINE (fallback when orchestrator is disabled or fails) ───
+            logger.info("Using legacy pipeline", email_id=email_id)
 
             subject = email_doc.get("subject", "")
             sender = email_doc.get("sender_email", "")

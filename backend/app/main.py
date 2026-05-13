@@ -33,6 +33,7 @@ from app.routes.sender_routes import router as sender_router
 from app.routes.webhook_routes import router as webhook_router
 from app.routes.assistant_routes import router as assistant_router
 from app.routes.auto_reply_routes import router as auto_reply_router
+from app.routes.agent_routes import router as agent_router
 
 import structlog
 
@@ -43,7 +44,7 @@ logger = structlog.get_logger(__name__)
 async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
     # Startup
-    logger.info("Starting Nexus Mail backend v3.1")
+    logger.info("Starting Nexus Mail backend v4.0 — Multi-Agent Orchestration")
     await connect_to_mongo()
     await connect_to_redis()
     setup_background_tasks()
@@ -62,8 +63,8 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Nexus Mail API",
-        description="AI-powered email assistant with Meeting Intelligence",
-        version="3.1.0",
+        description="Autonomous Multi-Agent Email Intelligence Platform with LangGraph-inspired orchestration",
+        version="4.0.0",
         lifespan=lifespan,
     )
 
@@ -106,23 +107,26 @@ def create_app() -> FastAPI:
     app.include_router(webhook_router, prefix="/api")
     app.include_router(assistant_router, prefix="/api")
     app.include_router(auto_reply_router, prefix="/api")
+    app.include_router(agent_router, prefix="/api")
 
     # ─── Health Check ───
     @app.get("/health")
     async def health_check():
         return {
             "status": "healthy",
-            "version": "3.1.0",
+            "version": "4.0.0",
             "app": settings.app_name,
+            "architecture": "multi-agent-orchestration",
         }
 
     @app.get("/")
     async def root():
         return {
             "app": "Nexus Mail",
-            "version": "3.1.0",
+            "version": "4.0.0",
             "docs": "/docs",
-            "description": "AI-powered email assistant with Meeting Intelligence",
+            "description": "Autonomous Multi-Agent Email Intelligence Platform",
+            "architecture": "multi-agent-orchestration",
         }
 
     return app

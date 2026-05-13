@@ -3,7 +3,7 @@ Nexus Mail — Auth Routes
 Google OAuth flow + consent status.
 """
 
-from fastapi import APIRouter, HTTPException, Request, status, Depends
+from fastapi import APIRouter, HTTPException, Request, status, Depends, BackgroundTasks
 from app.services.auth_service import AuthService
 from app.models.schemas import AuthCallbackRequest
 from app.routes.middleware import get_current_user
@@ -33,7 +33,7 @@ async def get_google_auth_url(state: str | None = None):
 
 
 @router.post("/google/callback")
-async def google_callback(request: Request, body: AuthCallbackRequest):
+async def google_callback(request: Request, body: AuthCallbackRequest, background_tasks: BackgroundTasks):
     """
     Handle Google OAuth callback.
     Per v3.1 spec: requires consent_given=True or returns 400.
@@ -50,6 +50,27 @@ async def google_callback(request: Request, body: AuthCallbackRequest):
             ip_address=ip_address or body.ip_address,
             user_agent=user_agent or body.user_agent,
         )
+
+        # Trigger immediate background sync
+        from app.services.gmail_service import GmailService
+        from app.ai_worker.pipeline import ProcessingPipeline
+        import asyncio
+        from structlog import get_logger
+        
+        async def run_initial_sync(user_id: str):
+            logger = get_logger(__name__)
+            try:
+                logger.info("Starting immediate background sync after login", user_id=user_id)
+                svc = GmailService()
+                pipe = ProcessingPipeline()
+                await svc.sync_emails(user_id)
+                await pipe.process_unprocessed_emails(user_id, limit=20)
+                logger.info("Immediate background sync complete", user_id=user_id)
+            except Exception as e:
+                logger.error("Failed immediate background sync", user_id=user_id, error=str(e))
+                
+        user_id = result["user"]["id"]
+        background_tasks.add_task(run_initial_sync, user_id)
 
         return result
 

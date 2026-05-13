@@ -6,23 +6,24 @@
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
   :root {
-    --nexus-bg: #0A0A0A;
-    --nexus-card: rgba(255, 255, 255, 0.05);
-    --nexus-card-hover: rgba(255, 255, 255, 0.08);
-    --nexus-border: rgba(255, 255, 255, 0.1);
-    --nexus-text: #ffffff;
-    --nexus-text-muted: rgba(255, 255, 255, 0.6);
-    --nexus-shadow: rgba(0, 0, 0, 0.3);
+    /* War Room Dark Grey Theme */
+    --nexus-bg: #111318;
+    --nexus-card: rgba(30, 33, 40, 0.7);
+    --nexus-card-hover: rgba(40, 44, 53, 0.9);
+    --nexus-border: rgba(255, 255, 255, 0.08);
+    --nexus-text: #f1f5f9;
+    --nexus-text-muted: #94a3b8;
+    --nexus-shadow: rgba(0, 0, 0, 0.4);
   }
 
   .light-theme {
-    /* Apple-inspired Light Theme */
-    --nexus-bg: #F5F5F7;
-    --nexus-card: rgba(255, 255, 255, 0.6);
-    --nexus-card-hover: rgba(255, 255, 255, 0.9);
-    --nexus-border: rgba(0, 0, 0, 0.1);
-    --nexus-text: #1d1d1f;
-    --nexus-text-muted: rgba(29, 29, 31, 0.6);
+    /* Maintained for compatibility, but skewed slightly grey */
+    --nexus-bg: #f8fafc;
+    --nexus-card: rgba(255, 255, 255, 0.8);
+    --nexus-card-hover: rgba(255, 255, 255, 1);
+    --nexus-border: rgba(15, 23, 42, 0.1);
+    --nexus-text: #0f172a;
+    --nexus-text-muted: #64748b;
     --nexus-shadow: rgba(0, 0, 0, 0.05);
   }
 

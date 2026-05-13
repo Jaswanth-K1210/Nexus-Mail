@@ -3,8 +3,8 @@
 
   # ⚡ Nexus Mail
 
-  **The AI-Powered Open Source Email Workspace.**<br>
-  *A privacy-first, zero-data retention command center for your inbox.*
+  **Autonomous Multi-Agent Email Intelligence Platform**<br>
+  *Production-grade agentic AI system with LangGraph-inspired orchestration, multi-tier memory, tool abstraction, and autonomous email operations.*
 
   <br>
   <b><a href="https://github.com/Jaswanth-K1210/Nexus-Mail/blob/main/demo.mov">▶️ Click here to watch the Demo Video</a></b>
@@ -13,63 +13,230 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
   [![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)](https://fastapi.tiangolo.com/)
   [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
+  [![Architecture](https://img.shields.io/badge/Architecture-Multi--Agent_Orchestration-8B5CF6)]()
   [![Groq](https://img.shields.io/badge/AI-Groq_|_Llama_3-f55036)](https://groq.com/)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
-  [Features](#sparkles-features) •
-  [Architecture](#triangular_ruler-architecture) •
-  [Quickstart](#rocket-quickstart) •
-  [Contributing](#handshake-contributing) •
-  [SaaS & Enterprise](#office-b2b-saas--enterprise)
+  [Architecture](#-multi-agent-architecture) •
+  [Agents](#-agent-system) •
+  [Features](#-features) •
+  [Quickstart](#-quickstart) •
+  [AI Infrastructure](#-ai-infrastructure)
 </div>
 
 <br>
 
-<p align="center">
-  Nexus Mail is an open-source alternative to expensive AI email wrappers. It plugs directly into your Gmail account and uses lightning-fast LLMs (Groq / Llama-3) to mathematically triage your emails, extract action items, and build a cohesive timeline of your deadlines and meetings—all while strictly enforcing a <b>Zero-Data Retention</b> policy to protect your privacy.
-</p>
-
-## :sparkles: Features
-
-- 🧠 **AI Priority Triage:** Automatically scores and splits emails into a "Priority Inbox" (investors, clients, team) and "Other Inbox" (receipts, newsletters).
-- ⏱️ **Mail Specialist Timeline:** Extracts deadlines and action items directly from email bodies and merges them with your upcoming Google Calendar events.
-- 📋 **Smart Task Extraction:** AI-powered extraction of tasks, deadlines, and action items from emails — surfaced directly in the dashboard.
-- 📅 **Meeting Intelligence:** Detects meeting invitations with high accuracy, auto-dismisses past meetings, and lets you accept with or without sending a reply.
-- 💨 **Sub-Second AI via Groq:** Uses highly-optimized plain-text KV extraction prompts to process incoming emails with < 1s latency at a fraction of standard JSON LLM token costs.
-- 🛡️ **Zero-Data Retention Policy:** Aggressively drops HTML/Text payloads from the database the moment AI processing concludes. Keep the intelligence, drop the bulk.
-- 🤖 **Draft-First Capabilities:** Automatically generate warm, contextual replies to meeting invites and standard emails using your custom tone profile.
-- 🔐 **Silent Token Refresh:** JWT tokens auto-refresh in the background — no unexpected logouts during long sessions.
-- ⌨️ **Command Palette:** Quick-access keyboard shortcut palette for navigating the workspace.
+> **Nexus Mail** is an autonomous email operations platform that deploys **7 specialized AI agents** through a **LangGraph-inspired stateful execution graph** to classify, analyze, and act on incoming emails. The system features multi-tier memory (short-term, long-term, episodic, semantic), tool-augmented agents, production-grade observability, and autonomous workflow capabilities — all while enforcing a strict zero-data retention privacy policy.
 
 ---
 
-## :triangular_ruler: Architecture
+## 🏗️ Multi-Agent Architecture
 
-Nexus Mail is built on a modern, highly scalable stack optimized for easy self-hosting or scalable enterprise deployment.
+Nexus Mail transforms email processing from a monolithic pipeline into a production-grade multi-agent orchestration system.
 
 ```mermaid
-graph LR
-    A[Gmail API] -->|IMAP / Webhook| B(FastAPI Backend)
-    B --> C{AI Pipeline\nGroq Llama-3}
-    C -->|Extract KV Data| D[(MongoDB)]
-    D -->|Purge Payload| D
-    D --> E[React / Vite Frontend]
-    F[Google Calendar API] --> B
-    B --> E
+graph TB
+    subgraph "Email Input"
+        A[Gmail API] -->|Webhook/Sync| B(Orchestrator Engine)
+    end
+    
+    subgraph "Agent Execution Graph"
+        B --> C[🎯 Triage Agent]
+        C -->|"is_meeting=true"| D[📅 Meeting Agent]
+        C -->|"spam/archive"| J[Fast Path]
+        C --> E[Parallel Execution]
+        D --> E
+        
+        subgraph "Parallel Agents"
+            E --> F[📋 Action Agent]
+            E --> G[🛡️ Security Agent]
+            E --> H[📝 Summarizer]
+        end
+        
+        F & G & H --> I[💬 Response Agent]
+        I --> K[🧠 Memory Agent]
+    end
+    
+    subgraph "Infrastructure"
+        L[(MongoDB)] --- M[Long-Term Memory]
+        L --- N[Episodic Memory]
+        L --- O[Execution Traces]
+        P[(Redis)] --- Q[Short-Term Memory]
+        P --- R[Distributed Locks]
+    end
+    
+    subgraph "Tools"
+        S[GmailTool]
+        T[CalendarTool]
+        U[SearchTool]
+        V[AnalyticsTool]
+    end
+    
+    K --> L
+    J --> L
 ```
 
-### Stack
-* **Frontend:** React, Vite, Tailwind CSS, Lucide Icons
-* **Backend:** Python, FastAPI, Motor (Async MongoDB), Celery / Redis (Optional scaling)
-* **Database:** MongoDB
-* **AI Provider:** Groq (Llama-3 8b/70b highly recommended for speed), OpenRouter / OpenAI fallback
-* **Deployment:** Docker Compose, Nginx with HTTPS (Let's Encrypt)
+### Agent Execution Flow
+
+```
+START → Triage Agent → Conditional Router
+                        ├─ Meeting detected → Meeting Intelligence Agent
+                        ├─ Spam/auto-archive → Fast path (skip heavy agents)
+                        └─ Standard → Parallel execution
+                        
+Parallel: Action Agent ║ Security Agent ║ Summarizer
+                        ↓
+Response Agent → Memory Agent → Persist → END
+```
+
+Each agent produces:
+- **Structured output** — typed, validated results
+- **Reasoning trace** — chain-of-thought decision explanation
+- **Confidence score** — how certain the agent is
+- **Tool invocation log** — which tools were used and their latency
+- **Execution telemetry** — tokens, latency, retry count
 
 ---
 
-## :rocket: Quickstart
+## 🤖 Agent System
 
-You can run Nexus Mail locally on your machine in under 5 minutes.
+### 1. Inbox Triage Agent (`triage_agent`)
+| Capability | Description |
+|-----------|-------------|
+| Email Classification | 8+ categories with role-specific classification (15+ categories for specialized roles) |
+| Priority Scoring | 5-signal algorithm: sender relationship (30%) + content urgency (25%) + category (20%) + recency (15%) + behavior (10%) |
+| Sender Intelligence | VIP detection, cold sender analysis, relationship strength scoring |
+| Reasoning | Produces structured decision log: *"High-priority from VIP sender → category 'important'"* |
+
+### 2. Meeting Intelligence Agent (`meeting_agent`)
+| Capability | Description |
+|-----------|-------------|
+| Calendar Reasoning | Checks Google Calendar for conflicts with 15-min buffer |
+| Conflict Detection | FREE / PARTIAL / BUSY status with conflict details |
+| Meeting Extraction | AI-powered extraction of datetime, timezone, platform, duration |
+| Confidence Gating | Below-threshold meetings are auto-dismissed |
+
+### 3. Action Extraction Agent (`action_agent`)
+| Capability | Description |
+|-----------|-------------|
+| Task Extraction | Structured action items with priority, deadline, and type |
+| Dependency Detection | Links related tasks across emails |
+| Follow-Up Tracking | Identifies missing replies and stale threads |
+
+### 4. Security Review Agent (`security_agent`)
+| Capability | Description |
+|-----------|-------------|
+| Phishing Detection | AI-powered analysis with confidence scoring |
+| Social Engineering | Pattern detection for manipulation tactics |
+| Sender Reputation | Cross-references with long-term sender memory |
+| Risk Escalation | Human-in-the-loop checkpoint for high-confidence threats |
+
+### 5. Response Generation Agent (`response_agent`)
+| Capability | Description |
+|-----------|-------------|
+| Auto-Reply | Autonomous replies for low-priority emails using tone profile |
+| Corporate Shield | Hyper-professional protocol for VIP/high-priority senders |
+| Meeting Drafts | Dual accept/decline drafts for meeting invitations |
+| Tone Adaptation | Passive learning from user's sent emails |
+
+### 6. Communication Memory Agent (`memory_agent`)
+| Capability | Description |
+|-----------|-------------|
+| Relationship Persistence | Stores sender interaction history for future decisions |
+| Episode Storage | Records past agent decisions for pattern recall |
+| Thread Summaries | Compressed conversation context for response continuity |
+| Task Tracking | Persists unresolved high-priority action items |
+
+### 7. Workflow Orchestrator
+| Capability | Description |
+|-----------|-------------|
+| Stateful Graph | LangGraph-inspired conditional routing with state transitions |
+| Parallel Execution | Independent agents run concurrently for latency optimization |
+| Retry + Fallback | Automatic retry-with-reflection on agent failure |
+| Human Checkpoints | Approval gates for high-risk autonomous actions |
+
+---
+
+## ✨ Features
+
+### Autonomous Workflows
+- 🧹 **Inbox Cleanup** — Auto-archive newsletters from never-read senders, auto-prioritize VIPs
+- 📅 **Meeting Handling** — Conflict detection, availability-based response suggestions
+- 📬 **Follow-Up Management** — Detect stale threads, generate reminders, escalate important emails
+- 🤖 **Auto-Reply** — AI-crafted acknowledgements for low-priority emails matching user's tone
+
+### Intelligence
+- 🧠 **Multi-Tier Memory** — Short-term (Redis), Long-term (MongoDB), Episodic (past decisions), Semantic (thread summaries)
+- 🔍 **Reasoning Traces** — Every agent decision explained with chain-of-thought reasoning
+- 📊 **5-Signal Priority** — Behavioral velocity + LLM classification + sender relationship
+- 🎯 **Role-Aware Classification** — 15+ categories per specialized professional role
+
+### Infrastructure
+- 📈 **Execution Tracing** — OpenTelemetry-compatible span-based tracing for every workflow
+- 🔧 **Tool Abstraction** — 6 structured tools (Gmail, Calendar, Draft, Search, Analytics, ThreadContext)
+- 🔄 **Circuit Breaker** — Automatic failover across 3 AI providers (Ollama → Groq → OpenRouter)
+- 🔒 **Zero-Data Retention** — AES-256 encrypted tokens, 30-day TTL on email data
+
+---
+
+## 🔬 AI Infrastructure
+
+### Orchestration Runtime
+```
+backend/app/
+├── agents/              # 7 specialized AI agents with reasoning traces
+│   ├── base.py          # BaseAgent with telemetry, retry, reflection
+│   ├── state.py         # WorkflowState (LangGraph-inspired typed state)
+│   ├── registry.py      # Dynamic agent registration + DI
+│   ├── triage_agent.py
+│   ├── meeting_agent.py
+│   ├── action_agent.py
+│   ├── security_agent.py
+│   ├── response_agent.py
+│   └── memory_agent.py
+├── orchestrator/        # Stateful execution graph
+│   └── graph.py         # EmailProcessingGraph with conditional routing
+├── tools/               # Tool abstraction layer
+│   ├── base.py          # BaseTool with structured I/O + retries
+│   └── implementations.py  # Gmail, Calendar, Draft, Search, Analytics tools
+├── memory/              # Multi-tier memory system
+│   └── store.py         # Short-term (Redis) + Long-term + Episodic + Semantic
+├── telemetry/           # Observability
+│   └── tracer.py        # Execution tracing, metrics, decision logging
+├── ai_worker/           # AI provider layer (preserved)
+│   ├── ai_provider.py   # 3-tier provider with circuit breaker
+│   ├── pipeline.py      # Orchestrator integration with legacy fallback
+│   └── tasks/           # AI prompt implementations (wrapped by agents)
+├── services/            # Business logic (wrapped by tools)
+├── routes/              # API endpoints including /api/agents/*
+└── core/                # Config, DB, Redis, Security
+```
+
+### Observability Stack
+
+| Metric | Storage | Retention |
+|--------|---------|-----------|
+| Execution Traces | MongoDB `execution_traces` | 30 days |
+| Agent Metrics | MongoDB `agent_metrics` | Permanent |
+| Decision Logs | MongoDB `agent_decisions` | Permanent |
+| Tool Metrics | MongoDB `tool_metrics` | Permanent |
+| Agent Memory | MongoDB `agent_memory` | Permanent |
+| Episodic Memory | MongoDB `agent_episodes` | 90 days |
+
+### API Endpoints
+
+```
+GET  /api/agents/registry          # List all agents and capabilities
+GET  /api/agents/metrics            # Agent execution metrics (daily)
+GET  /api/agents/decisions          # Agent decision logs
+GET  /api/agents/traces             # Recent execution traces
+GET  /api/agents/traces/{trace_id}  # Full trace detail with spans
+GET  /api/agents/memory/{sender}    # Sender memory and episodes
+```
+
+---
+
+## 🚀 Quickstart
 
 ### 1. Clone the repository
 ```bash
@@ -99,36 +266,46 @@ npm install
 npm run dev
 ```
 
-Your completely private AI assistant is now running at `http://localhost:5173`.
+Your autonomous AI email platform is now running at `http://localhost:5173`.
 
 ### 4. Docker Deployment (Production)
 ```bash
-# Build and run with Docker Compose
 docker compose up -d --build
 ```
-The app will be available at `https://your-domain.com`. Make sure to configure your `.env` and SSL certificates (Let's Encrypt) before deploying.
 
 ---
 
-## :office: The Architecture of Empathy & Open Source
+## 🏛️ Design Philosophy
 
-Nexus Mail has formally pivoted away from a massive B2B SaaS architecture and is now built entirely as a **Free, Open-Source, Bring-Your-Own-Key (BYOK)** platform. We believe AI should fundamentally ease the cognitive overload of the working class, not act as a premium enterprise barrier.
+Nexus Mail's agent architecture is inspired by:
 
-To understand why we abandoned the SaaS model in favor of a privacy-first, zero-data local database architecture for Corporate Employees, Independent Operators, and Field Workers, please read our [Open Source Manifesto](OPEN_SOURCE_MANIFESTO.md).
+| System | Inspiration |
+|--------|------------|
+| **LangGraph** | Stateful execution graphs with conditional routing and checkpoints |
+| **CrewAI** | Specialized agent roles with defined responsibilities |
+| **OpenAI Agents SDK** | Tool-augmented agents with structured outputs |
+| **AutoGen** | Multi-agent conversation and delegation patterns |
+| **MCP Protocol** | Standardized tool interface abstraction |
+
+### Key Design Decisions
+
+1. **Agents wrap, not replace** — Battle-tested AI prompts are preserved; agents add reasoning, telemetry, and memory around them
+2. **Tools wrap services** — Existing services become structured tools with tracing; no logic duplication
+3. **Memory is additive** — New collections alongside existing ones; zero migration risk
+4. **Graceful degradation** — Orchestrator falls back to legacy pipeline on failure
 
 ---
 
-## :handshake: Contributing
+## 🤝 Contributing
 
-Nexus Mail is entirely community-driven! We are trying to build the ultimate open-source email assistant. 
+Nexus Mail is entirely community-driven! Read our [Contributing Guidelines](CONTRIBUTING.md).
 
-Read our [Contributing Guidelines](CONTRIBUTING.md) to learn how you can submit Pull Requests.
-* **Good first issues:** UI refinements, adding support for Outlook/Microsoft Graph API, or refining AI prompts.
+**Good first issues:** Implementing vector DB support for semantic memory, adding a trace visualization component, or extending the agent system with new capabilities.
 
-## :scroll: License
+## 📜 License
 
-This project is licensed under the [MIT License](LICENSE). 
+This project is licensed under the [MIT License](LICENSE).
 
 <div align="center">
-  <b>If you love privacy-first AI, please give us a ⭐️ on GitHub!</b>
+  <b>If you love autonomous AI systems, please give us a ⭐️ on GitHub!</b>
 </div>

@@ -87,7 +87,39 @@ async def _create_indexes() -> None:
         [("user_id", 1), ("sender_email", 1)], unique=True
     )
 
-    logger.info("MongoDB indexes created")
+    # ─── v4.0: Agent System Collections ───
+
+    # execution_traces collection (Agent Telemetry)
+    await db.execution_traces.create_index([("user_id", 1), ("started_at", -1)])
+    await db.execution_traces.create_index("trace_id", unique=True)
+    await db.execution_traces.create_index(
+        "started_at", expireAfterSeconds=30 * 24 * 60 * 60  # 30-day TTL
+    )
+
+    # agent_memory collection (Long-Term Memory)
+    await db.agent_memory.create_index(
+        [("user_id", 1), ("sender_email", 1), ("memory_type", 1)]
+    )
+
+    # agent_episodes collection (Episodic Memory)
+    await db.agent_episodes.create_index([("user_id", 1), ("sender_email", 1)])
+    await db.agent_episodes.create_index(
+        "timestamp", expireAfterSeconds=90 * 24 * 60 * 60  # 90-day TTL
+    )
+
+    # agent_decisions collection (Decision Logs)
+    await db.agent_decisions.create_index([("user_id", 1), ("email_id", 1)])
+    await db.agent_decisions.create_index([("user_id", 1), ("agent", 1)])
+
+    # agent_metrics collection (Daily Metrics)
+    await db.agent_metrics.create_index([("date", 1), ("agent", 1)], unique=True)
+
+    # thread_summaries collection (Semantic Memory)
+    await db.thread_summaries.create_index(
+        [("user_id", 1), ("thread_id", 1)], unique=True
+    )
+
+    logger.info("MongoDB indexes created (including v4.0 agent system)")
 
 
 async def close_mongo_connection() -> None:
