@@ -1,0 +1,85 @@
+# ============================================
+# NEXUS MAIL — Render Blueprint
+# Provisions the FastAPI backend + a Key Value (Redis) instance.
+# The frontend is deployed separately on Vercel — see frontend/vercel.json.
+#
+# Secrets are declared with `sync: false`: Render creates the variable but
+# leaves it blank, so real values are entered in the dashboard and never
+# committed to git. The backend will not boot until they are filled in.
+# ============================================
+
+services:
+  # ─── FastAPI backend ───
+  - type: web
+    name: nexus-mail
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # --- App ---
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        value: https://nexus-mail.onrender.com
+      - key: FRONTEND_URL
+        value: https://nexus-mail.me
+
+      # --- Redis: wired automatically from the keyvalue service below ---
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: nexus-redis
+          property: connectionString
+
+      # --- Google OAuth ---
+      # The browser hits /callback on the Vercel domain, which is also what
+      # must be registered in Google Cloud Console → Authorized redirect URIs.
+      - key: GOOGLE_REDIRECT_URI
+        value: https://nexus-mail.me/callback
+
+      # --- CORS ---
+      # Vercel rewrites /api/* server-side, so browser requests stay
+      # same-origin and never trigger a preflight. These entries cover
+      # direct API access (curl, docs, local dev against prod).
+      - key: CORS_ORIGINS
+        value: https://nexus-mail.me,https://www.nexus-mail.me,http://localhost:5173
+
+      # --- Secrets: set these in the Render dashboard ---
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        sync: false
+      - key: APP_SECRET_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+
+  # ─── Redis (Render Key Value) ───
+  # Backs distributed locks (app/services/gmail_service.py, app/ai_worker/pipeline.py),
+  # the rate limiter, and the agent memory cache. The backend hard-fails at startup
+  # without it — app/core/redis_client.py pings on connect.
+  - type: keyvalue
+    name: nexus-redis
+    plan: free
+    region: oregon
+    # Empty allow list = reachable only from inside Render's private network.
+    ipAllowList: []
+    # Locks and counters are disposable; evict rather than error when full.
+    maxmemoryPolicy: allkeys-lru
