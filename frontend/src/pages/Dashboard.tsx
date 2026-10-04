@@ -159,8 +159,8 @@ export default function Dashboard() {
     const handleSync = async () => {
         try {
             setSyncing(true);
-            await api.post('/gmail/sync');
-            await api.post('/gmail/process');
+            await api.post('/gmail/sync', null, { timeout: 180000 });
+            await api.post('/gmail/process', null, { timeout: 180000 });
             await fetchDashboardData();
         } catch (err) {
             console.error("Sync failed", err);

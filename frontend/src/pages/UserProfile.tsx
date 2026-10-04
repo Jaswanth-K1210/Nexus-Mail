@@ -208,8 +208,8 @@ export default function UserProfile() {
     const handleSync = async () => {
         try {
             setSyncing(true);
-            await api.post('/gmail/sync');
-            await api.post('/gmail/process');
+            await api.post('/gmail/sync', null, { timeout: 180000 });
+            await api.post('/gmail/process', null, { timeout: 180000 });
             toast.success('Sync completed successfully');
         } catch {
             toast.error('Sync failed. You might need to reconnect your Google account.');
