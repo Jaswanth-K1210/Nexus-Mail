@@ -6,6 +6,7 @@ Runs for every email.
 
 from app.ai_worker.ai_provider import ai_provider, TaskType
 from app.ai_worker.utils import sanitize_for_prompt
+import re
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -16,7 +17,7 @@ Use the USER PERSONA PROFILE (if provided) to personalize the classification and
 - Elevate the priority and Suggested Action for emails directly relevant to their job role.
 - Downgrade standard/generic emails to "LOW RELEVANCE" or "AUTO-ARCHIVE" if it contradicts their role (e.g., sales pitches to a developer).
 
-Classify the email into EXACTLY ONE of these 8 categories:
+Classify the email into EXACTLY ONE of these 9 categories:
 1. "important" — Urgent emails from known contacts, important business updates, action-required items, direct messages from colleagues, peers, or investors.
 2. "requires_response" — Emails that explicitly ask for a reply or input from the user
 3. "meeting_invitation" — Emails proposing a meeting, call, sync, demo, interview, or containing .ics attachments
@@ -25,6 +26,7 @@ Classify the email into EXACTLY ONE of these 8 categories:
 6. "social" — EXACTLY social media notifications (LinkedIn, Twitter, etc), connection requests. DO NOT put peer-to-peer emails from real people discussing work here.
 7. "transactional" — Receipts, order confirmations, shipping updates, password resets
 8. "spam" — Junk, phishing attempts, suspicious content
+9. "project_updates" — Notifications from developer/hosting platforms (Vercel, AWS, Render, MongoDB, GitHub): deploys, build failures, incidents, usage/billing alerts, issues, pull requests
 
 For meeting detection, look for AT LEAST TWO of these signals:
 - Subject contains: meeting, call, sync, catch up, interview, demo, discussion, let's connect, availability
@@ -48,12 +50,43 @@ Analyze the email and also provide a Suggested Action. It must be EXACTLY ONE of
 4. "AUTO-ARCHIVE" (Cold sales emails, pure promotional spam, or noise the user should delete without reading).
 
 Respond in plain text exactly in this format (no json, no quotes):
-Category: <one of the 8 categories>
+Category: <one of the 9 categories>
 Suggested Action: <one of the 4 actions>
 Severity: <1-5 integer>
 Is Meeting Invitation: <true or false>
 Confidence: <0.0-1.0>
 Reasoning: <brief explanation>"""
+
+
+# ─── Deterministic rules ──────────────────────────────────────────────────────
+# Sender/subject patterns the LLM routinely gets wrong (it files these under
+# "important"). Cheap, predictable, and applied after the model so they win.
+_PROJECT_SENDERS = (
+    "vercel.com", "render.com", "mongodb.com", "amazonaws.com", "aws.amazon.com",
+    "amazon web services", "github.com", "netlify.com", "heroku.com", "cloudflare.com",
+    "railway.app", "supabase.com", "supabase.io", "digitalocean.com", "sentry.io",
+)
+_JOB_SENDERS = (
+    "amazon.jobs", "greenhouse.io", "lever.co", "myworkday", "smartrecruiters.com",
+    "indeed.com", "naukri.com", "wellfound.com", "workable.com", "icims.com",
+)
+_JOB_SUBJECT = re.compile(
+    r"\b(your (job )?application|job application|application (for|to) (the )?(position|role)|"
+    r"interview|online assessment|offer letter)\b", re.I,
+)
+
+
+def _rule_category(sender: str, subject: str, valid_categories: list[str]) -> str | None:
+    """Return a category forced by sender/subject rules, or None to keep the model's."""
+    s = (sender or "").lower()
+    if any(d in s for d in _PROJECT_SENDERS):
+        return "project_updates"
+    if any(d in s for d in _JOB_SENDERS) or _JOB_SUBJECT.search(subject or ""):
+        # Roles name their career-ish category differently; use whichever exists.
+        for cat in ("job_application", "interview"):
+            if cat in valid_categories:
+                return cat
+    return None
 
 
 async def classify_email(
@@ -80,6 +113,7 @@ async def classify_email(
         valid_categories = [
             "important", "requires_response", "meeting_invitation",
             "newsletter", "promotional", "social", "transactional", "spam",
+            "project_updates",
         ]
 
     user_prompt = f"""Classify this email:
@@ -126,6 +160,8 @@ BODY:
         if has_ics:
             is_meeting = True
             category = "meeting_invitation"
+        elif category != "spam":
+            category = _rule_category(sender, subject, valid_categories) or category
 
         try:
             import re

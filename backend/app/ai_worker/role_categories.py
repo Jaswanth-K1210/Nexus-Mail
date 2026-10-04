@@ -17,6 +17,7 @@ SHARED_CATEGORIES: list[str] = [
     "promotional",
     "spam",
     "important",
+    "project_updates",
 ]
 
 # ---------------------------------------------------------------------------
@@ -247,6 +248,7 @@ _CATEGORY_DESCRIPTIONS: dict[str, str] = {
     "transactional": "Receipts, order confirmations, shipping updates, password resets, or account alerts",
     "promotional": "Marketing emails, sales offers, discount codes, or product announcements",
     "spam": "Junk mail, phishing attempts, suspicious or unsolicited bulk messages",
+    "project_updates": "Notifications from developer/hosting platforms (Vercel, AWS, Render, MongoDB, GitHub): deployments, build failures, incidents, usage/billing alerts, issues and pull requests",
     "important": "Urgent, action-required emails from known contacts that do not fit a more specific category",
 
     # --- Student ---

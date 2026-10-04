@@ -49,9 +49,24 @@ class GmailService:
 
             # Get the last successfully processed historyId for this user
             user = await db.users.find_one(
-                {"_id": ObjectId(user_id)}, {"last_history_id": 1, "last_sync": 1}
+                {"_id": ObjectId(user_id)}, {"last_history_id": 1, "last_sync": 1, "backfill_30d_done": 1}
             )
             last_history_id = user.get("last_history_id") if user else None
+
+            if not (user or {}).get("backfill_30d_done"):
+                # One-time 30-day backfill (read + unread). Accounts that synced
+                # before this existed only ever imported unread mail, so mail they
+                # had already opened is missing. Also re-queue emails that were
+                # filed under the generic fallback so the new rules re-categorise them.
+                result = await self._full_sync(service, db, user_id, 300)
+                await db.emails.update_many(
+                    {"user_id": user_id, "category": {"$in": ["important", "requires_response"]}},
+                    {"$set": {"is_processed": False}},
+                )
+                await db.users.update_one(
+                    {"_id": ObjectId(user_id)}, {"$set": {"backfill_30d_done": True}}
+                )
+                return result
 
             if last_history_id:
                 # ─── INCREMENTAL SYNC via history.list() ───
@@ -86,11 +101,18 @@ class GmailService:
         # mail the user already opened isn't missing; the fallback sync stays
         # unread-only so it never re-reads mail that was already synced.
         query = "in:inbox is:unread" if only_unread else "in:inbox newer_than:30d"
-        messages_result = service.users().messages().list(
-            userId="me", q=query, maxResults=max_results
-        ).execute()
+        messages: list[dict] = []
+        page_token = None
+        while len(messages) < max_results:
+            page = service.users().messages().list(
+                userId="me", q=query, maxResults=min(100, max_results - len(messages)),
+                pageToken=page_token,
+            ).execute()
+            messages.extend(page.get("messages", []))
+            page_token = page.get("nextPageToken")
+            if not page_token:
+                break
 
-        messages = messages_result.get("messages", [])
         if not messages:
             # Still store the historyId so incremental sync works next time
             await db.users.update_one(

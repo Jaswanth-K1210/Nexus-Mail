@@ -68,6 +68,20 @@ const SHARED_DO_NOT_REPLY_LANE: LaneConfig = {
   categories: ['transactional', 'spam', 'social'],
 };
 
+// Developer-platform mail (Vercel, AWS, Render, MongoDB, GitHub...): deploys,
+// incidents, billing/usage alerts, issues. Same for every role.
+const SHARED_PROJECTS_LANE: LaneConfig = {
+  key: 'projects',
+  label: 'Projects',
+  icon: 'FolderOpen',
+  color: 'text-sky-400',
+  dot: 'bg-sky-400',
+  border: 'border-sky-500/25',
+  bg: 'bg-sky-500/5',
+  headerBg: 'bg-sky-500/10',
+  categories: ['project_updates'],
+};
+
 // The classifier's generic "important" / "requires_response" results aren't
 // role-specific, so without this lane they all fall into "Other".
 const SHARED_IMPORTANT_LANE: LaneConfig = {
@@ -82,9 +96,9 @@ const SHARED_IMPORTANT_LANE: LaneConfig = {
   categories: ['important', 'requires_response'],
 };
 
-/** Appends the shared lanes (Important, Promotions, Do Not Reply) to a lane list. */
+/** Appends the shared lanes (Projects, Important, Promotions, Do Not Reply) to a lane list. */
 function withShared(lanes: LaneConfig[]): LaneConfig[] {
-  return [...lanes, SHARED_IMPORTANT_LANE, SHARED_PROMOTIONS_LANE, SHARED_DO_NOT_REPLY_LANE];
+  return [...lanes, SHARED_PROJECTS_LANE, SHARED_IMPORTANT_LANE, SHARED_PROMOTIONS_LANE, SHARED_DO_NOT_REPLY_LANE];
 }
 
 // ─── Role Definitions ─────────────────────────────────────────────────────────
