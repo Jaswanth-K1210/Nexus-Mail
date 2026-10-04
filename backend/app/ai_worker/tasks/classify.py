@@ -173,4 +173,7 @@ BODY:
             "is_meeting_invitation": has_ics,
             "confidence": 0.0,
             "reasoning": f"Classification failed: {str(e)}",
+            # Lets the pipeline leave the email unprocessed (retry) instead of
+            # persisting this placeholder as if it were a real classification.
+            "failed": True,
         }

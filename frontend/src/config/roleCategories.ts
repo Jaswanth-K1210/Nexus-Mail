@@ -68,9 +68,23 @@ const SHARED_DO_NOT_REPLY_LANE: LaneConfig = {
   categories: ['transactional', 'spam', 'social'],
 };
 
-/** Appends the two shared lanes (Promotions, Do Not Reply) to a lane list. */
+// The classifier's generic "important" / "requires_response" results aren't
+// role-specific, so without this lane they all fall into "Other".
+const SHARED_IMPORTANT_LANE: LaneConfig = {
+  key: 'important',
+  label: 'Important',
+  icon: 'Star',
+  color: 'text-rose-400',
+  dot: 'bg-rose-400',
+  border: 'border-rose-500/25',
+  bg: 'bg-rose-500/5',
+  headerBg: 'bg-rose-500/10',
+  categories: ['important', 'requires_response'],
+};
+
+/** Appends the shared lanes (Important, Promotions, Do Not Reply) to a lane list. */
 function withShared(lanes: LaneConfig[]): LaneConfig[] {
-  return [...lanes, SHARED_PROMOTIONS_LANE, SHARED_DO_NOT_REPLY_LANE];
+  return [...lanes, SHARED_IMPORTANT_LANE, SHARED_PROMOTIONS_LANE, SHARED_DO_NOT_REPLY_LANE];
 }
 
 // ─── Role Definitions ─────────────────────────────────────────────────────────

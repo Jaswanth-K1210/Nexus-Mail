@@ -26,7 +26,7 @@ class GmailService:
     def __init__(self):
         self.auth_service = AuthService()
 
-    async def sync_emails(self, user_id: str, max_results: int = 50) -> dict:
+    async def sync_emails(self, user_id: str, max_results: int = 100) -> dict:
         """
         Sync emails from Gmail using historyId cursor for zero-loss guarantee.
 
@@ -82,8 +82,12 @@ class GmailService:
         current_history_id = profile.get("historyId")
 
         # Only fetch unread emails — read emails are already in our DB
+        # Initial sync imports the last 30 days (read or unread) so important
+        # mail the user already opened isn't missing; the fallback sync stays
+        # unread-only so it never re-reads mail that was already synced.
+        query = "in:inbox is:unread" if only_unread else "in:inbox newer_than:30d"
         messages_result = service.users().messages().list(
-            userId="me", q="in:inbox is:unread", maxResults=max_results
+            userId="me", q=query, maxResults=max_results
         ).execute()
 
         messages = messages_result.get("messages", [])

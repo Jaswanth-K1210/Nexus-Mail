@@ -86,4 +86,20 @@ api.interceptors.response.use(
     }
 );
 
+/**
+ * Sync Gmail, then run the AI pipeline until nothing is left to process.
+ * The backend handles 10 emails per /process call, so one call isn't enough.
+ * Stops early when a pass makes no progress (e.g. AI provider erroring) so a
+ * persistent failure can't loop forever.
+ */
+export async function syncAndProcess(maxPasses = 15) {
+    const opts = { timeout: 180000 };
+    await api.post('/gmail/sync', null, opts);
+    for (let i = 0; i < maxPasses; i++) {
+        const { data } = await api.post('/gmail/process', null, opts);
+        if (!data?.processed) return { failed: data?.errors > 0 };
+    }
+    return { failed: false };
+}
+
 export default api;

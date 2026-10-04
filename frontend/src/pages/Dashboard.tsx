@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Clock, Calendar, CheckSquare, Brain, Home, Inbox, Sparkles, Mail, Shield, Plus, Trash2, Command, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import api from '../api';
+import api, { syncAndProcess } from '../api';
 import { SplitInbox } from '../components/SplitInbox';
 import { AnalyticsDashboard } from '../components/AnalyticsDashboard';
 import { MeetingAlerts } from '../components/MeetingAlerts';
@@ -159,8 +159,8 @@ export default function Dashboard() {
     const handleSync = async () => {
         try {
             setSyncing(true);
-            await api.post('/gmail/sync', null, { timeout: 180000 });
-            await api.post('/gmail/process', null, { timeout: 180000 });
+            const { failed } = await syncAndProcess();
+            if (failed) toast.error("Some emails couldn't be processed by the AI and will retry on the next sync.");
             await fetchDashboardData();
         } catch (err) {
             console.error("Sync failed", err);

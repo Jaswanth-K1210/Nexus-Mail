@@ -36,6 +36,10 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
+
+class ClassificationFailed(Exception):
+    """AI classification errored; the email must stay unprocessed so it retries."""
+
 class ProcessingPipeline:
     """
     Orchestrates the complete AI processing pipeline for emails.
@@ -105,6 +109,8 @@ class ProcessingPipeline:
 
                     # Extract results from orchestrator output (backward compatible)
                     triage_out = orchestrator_results.get("classification", {})
+                    if triage_out.get("failed"):
+                        raise ClassificationFailed(triage_out.get("reasoning", ""))
                     summary_out = orchestrator_results.get("summary", {})
                     action_out = orchestrator_results.get("actions", {})
                     risk_out = orchestrator_results.get("risks", {})
@@ -183,6 +189,8 @@ class ProcessingPipeline:
                     orchestrator_results["status"] = "processed_agentic"
                     return orchestrator_results
 
+                except ClassificationFailed:
+                    raise
                 except Exception as e:
                     logger.error(
                         "Orchestrator failed, falling back to legacy pipeline",
@@ -231,6 +239,8 @@ class ProcessingPipeline:
                 user_persona=user_persona,
                 user_role=user_role,
             )
+            if classification.get("failed"):
+                raise ClassificationFailed(classification.get("reasoning", ""))
             results["classification"] = classification
             results["tasks_completed"].append("classify")
 

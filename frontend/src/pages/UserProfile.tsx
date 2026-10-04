@@ -8,7 +8,7 @@ import {
     X, Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../api';
+import api, { syncAndProcess } from '../api';
 
 type SettingsSection = 'profile' | 'preferences' | 'sync' | 'appearance' | 'notifications' | 'security' | 'integrations' | 'help';
 
@@ -30,18 +30,79 @@ const ROLE_OPTIONS = [
     { key: 'sales_marketing', label: 'Sales & Marketing', emoji: '📣' },
 ];
 
-const INDUSTRIES = [
-    'SaaS / Software', 'Finance / Fintech', 'Healthcare', 'E-commerce',
-    'Media / Content', 'Education', 'Consulting', 'Other',
-];
+interface RoleOptions {
+    industryTitle: string;
+    industries: string[];
+    sizeTitle: string;
+    sizes: string[];
+    senders: string[];
+}
 
-const SIZES = ['Solo', 'Startup (1-10)', 'SMB (10-100)', 'Mid-market (100-1k)', 'Enterprise (1k+)'];
+const COMPANY_SIZES = ['Solo', 'Startup (1-10)', 'SMB (10-100)', 'Mid-market (100-1k)', 'Enterprise (1k+)'];
 
-const SENDERS = [
-    'Investors / VCs', 'Customers / Clients', 'Co-founders / Team',
-    'Vendors / Partners', 'Press / Media', 'Advisors / Mentors',
-    'Job Applicants', 'Government / Legal', 'Personal Contacts',
-];
+// The options shown under the role picker depend on the role: a student has no
+// "investors", a founder has no "professors".
+const DEFAULT_OPTIONS: RoleOptions = {
+    industryTitle: 'Industry',
+    industries: ['SaaS / Software', 'Finance / Fintech', 'Healthcare', 'E-commerce',
+        'Media / Content', 'Education', 'Consulting', 'Other'],
+    sizeTitle: 'Company Size',
+    sizes: COMPANY_SIZES,
+    senders: ['Customers / Clients', 'Co-founders / Team', 'Vendors / Partners',
+        'Managers / Leadership', 'Recruiters', 'Government / Legal', 'Personal Contacts'],
+};
+
+const ROLE_OPTIONS_BY_KEY: Record<string, RoleOptions> = {
+    student: {
+        industryTitle: 'Field of Study',
+        industries: ['Engineering / CS', 'Business / Commerce', 'Science', 'Arts / Humanities',
+            'Medicine / Health', 'Law', 'Design', 'Other'],
+        sizeTitle: 'Year of Study',
+        sizes: ['1st Year', '2nd Year', '3rd Year', '4th Year', 'Postgraduate', 'PhD'],
+        senders: ['Professors / Faculty', 'Recruiters', 'Placement Cell', 'Classmates / Study Groups',
+            'University Admin', 'Scholarship Bodies', 'Clubs / Campus Events', 'Personal Contacts'],
+    },
+    working_professional: {
+        ...DEFAULT_OPTIONS,
+        sizeTitle: 'Employer Size',
+        senders: ['Manager / Leadership', 'Teammates', 'Clients', 'HR', 'Recruiters',
+            'Vendors / Partners', 'Personal Contacts'],
+    },
+    founder: {
+        ...DEFAULT_OPTIONS,
+        senders: ['Investors / VCs', 'Customers / Clients', 'Co-founders / Team',
+            'Vendors / Partners', 'Press / Media', 'Advisors / Mentors',
+            'Job Applicants', 'Government / Legal', 'Personal Contacts'],
+    },
+    freelancer: {
+        ...DEFAULT_OPTIONS,
+        industryTitle: 'Specialty',
+        industries: ['Development', 'Design', 'Writing / Content', 'Marketing', 'Video / Audio',
+            'Consulting', 'Other'],
+        sizeTitle: 'Practice Size',
+        sizes: ['Solo', 'Small team (2-5)', 'Agency (5+)'],
+        senders: ['Clients', 'Prospects', 'Platforms (Upwork, Fiverr…)', 'Agencies',
+            'Accountants / Invoicing', 'Personal Contacts'],
+    },
+    educator: {
+        industryTitle: 'Level Taught',
+        industries: ['Primary', 'Secondary', 'Undergraduate', 'Postgraduate', 'Corporate Training', 'Other'],
+        sizeTitle: 'Institution Size',
+        sizes: ['Small (<500)', 'Medium (500-5k)', 'Large (5k+)'],
+        senders: ['Students', 'Parents', 'Department / Admin', 'Colleagues', 'Researchers / Publishers',
+            'Personal Contacts'],
+    },
+    healthcare: {
+        industryTitle: 'Practice Area',
+        industries: ['General Practice', 'Hospital / Clinical', 'Specialist', 'Dental', 'Research', 'Other'],
+        sizeTitle: 'Facility Size',
+        sizes: ['Solo practice', 'Clinic', 'Hospital', 'Health system'],
+        senders: ['Patients', 'Colleagues / Referrals', 'Hospital Admin', 'Insurers / Payers',
+            'Labs / Pharma', 'Personal Contacts'],
+    },
+};
+
+const getRoleOptions = (roleKey: string): RoleOptions => ROLE_OPTIONS_BY_KEY[roleKey] ?? DEFAULT_OPTIONS;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface UserPreferences {
@@ -65,7 +126,7 @@ const DEFAULT_PREFS: UserPreferences = {
     role: '',
     roleKey: '',
     industry: '',
-    companySize: 'Startup (1-10)',
+    companySize: '',
     importantSenders: [],
     customPersona: '',
 };
@@ -208,9 +269,9 @@ export default function UserProfile() {
     const handleSync = async () => {
         try {
             setSyncing(true);
-            await api.post('/gmail/sync', null, { timeout: 180000 });
-            await api.post('/gmail/process', null, { timeout: 180000 });
-            toast.success('Sync completed successfully');
+            const { failed } = await syncAndProcess();
+            if (failed) toast.error("Some emails couldn't be processed by the AI and will retry on the next sync.");
+            else toast.success('Sync completed successfully');
         } catch {
             toast.error('Sync failed. You might need to reconnect your Google account.');
         } finally {
@@ -254,6 +315,7 @@ export default function UserProfile() {
     };
 
     const currentRole = ROLE_OPTIONS.find(r => r.key === prefs.roleKey);
+    const roleOpts = getRoleOptions(prefs.roleKey);
 
     // ─── Render sections ───
     const renderContent = () => {
@@ -402,7 +464,11 @@ export default function UserProfile() {
                                 {ROLE_OPTIONS.map(r => (
                                     <button
                                         key={r.key}
-                                        onClick={() => { updatePref('role', r.label); updatePref('roleKey', r.key); }}
+                                        onClick={() => setPrefs(prev => prev.roleKey === r.key ? prev : ({
+                                            // Options are role-specific, so previous picks no longer apply.
+                                            ...prev, role: r.label, roleKey: r.key,
+                                            industry: '', companySize: '', importantSenders: [],
+                                        }))}
                                         className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition-all text-left flex items-center gap-2 ${
                                             prefs.roleKey === r.key
                                                 ? 'bg-nexus-primary/20 border-nexus-primary text-nexus-primary shadow-[0_0_15px_rgba(177,158,239,0.2)]'
@@ -420,15 +486,15 @@ export default function UserProfile() {
                         <div className="glass-panel p-6 space-y-5">
                             <div className="flex items-center gap-2">
                                 <Building2 className="w-4 h-4 text-nexus-primary" />
-                                <h3 className="text-base font-semibold text-nexus-text">Company & Industry</h3>
+                                <h3 className="text-base font-semibold text-nexus-text">{roleOpts.industryTitle} & {roleOpts.sizeTitle}</h3>
                                 {(prefs.industry !== savedPrefs.industry || prefs.companySize !== savedPrefs.companySize) && (
                                     <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">Changed</span>
                                 )}
                             </div>
                             <div>
-                                <label className="text-xs text-nexus-textMuted uppercase tracking-wide font-medium mb-2 block">Industry</label>
+                                <label className="text-xs text-nexus-textMuted uppercase tracking-wide font-medium mb-2 block">{roleOpts.industryTitle}</label>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {INDUSTRIES.map(ind => (
+                                    {roleOpts.industries.map(ind => (
                                         <button
                                             key={ind}
                                             onClick={() => updatePref('industry', ind)}
@@ -444,9 +510,9 @@ export default function UserProfile() {
                                 </div>
                             </div>
                             <div>
-                                <label className="text-xs text-nexus-textMuted uppercase tracking-wide font-medium mb-2 block">Company Size</label>
+                                <label className="text-xs text-nexus-textMuted uppercase tracking-wide font-medium mb-2 block">{roleOpts.sizeTitle}</label>
                                 <div className="flex gap-2 flex-wrap">
-                                    {SIZES.map(size => (
+                                    {roleOpts.sizes.map(size => (
                                         <button
                                             key={size}
                                             onClick={() => updatePref('companySize', size)}
@@ -474,7 +540,7 @@ export default function UserProfile() {
                             </div>
                             <p className="text-xs text-nexus-textMuted">Emails from these groups get elevated priority automatically.</p>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {SENDERS.map(sender => (
+                                {roleOpts.senders.map(sender => (
                                     <button
                                         key={sender}
                                         onClick={() => toggleSender(sender)}
