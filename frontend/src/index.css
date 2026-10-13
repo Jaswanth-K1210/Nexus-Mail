@@ -80,3 +80,14 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(177, 158, 239, 0.5);
 }
+
+/* Legal pages prose */
+@layer components {
+  .legal p { @apply mb-3 text-nexus-textMuted; }
+  .legal strong { @apply text-nexus-text font-semibold; }
+  .legal ul { @apply list-disc pl-5 mb-3 space-y-1.5 text-nexus-textMuted; }
+  .legal code { @apply text-[0.85em] px-1.5 py-0.5 rounded bg-nexus-card border border-nexus-border text-nexus-text; }
+  .legal table { @apply w-full text-sm border border-nexus-border rounded-lg mb-3; }
+  .legal th { @apply text-left font-semibold p-2.5 bg-nexus-card border-b border-nexus-border; }
+  .legal td { @apply p-2.5 border-b border-nexus-border text-nexus-textMuted align-top; }
+}
