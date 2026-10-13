@@ -69,7 +69,7 @@ export function MeetingAlerts() {
         try {
             setLoading(true);
             const res = await api.get('/meetings/pending');
-            const data: MeetingAlert[] = res.data.alerts.map((a: any) => ({
+            const data: MeetingAlert[] = res.data.alerts.map((a: Partial<MeetingAlert> & { _id?: string }) => ({
                 id: a.id || a._id,
                 email_id: a.email_id,
                 sender_name: a.sender_name || a.sender_email || 'Unknown',

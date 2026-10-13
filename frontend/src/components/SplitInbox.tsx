@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
     Briefcase, Tag, BellOff, Landmark, KeyRound, Receipt,
@@ -325,17 +325,15 @@ function ImportantView({
             return b.priorityScore - a.priorityScore;
         });
 
-    // Group into time buckets
-    const now = Date.now();
+    // Group into time buckets (snapshot of "now" taken at mount)
+    const [now] = useState(() => Date.now());
     const oneHour = 3600000;
     const oneDay = 86400000;
     const recent = filtered.filter(e => e.receivedAt && now - new Date(e.receivedAt).getTime() < oneHour);
     const today = filtered.filter(e => e.receivedAt && now - new Date(e.receivedAt).getTime() >= oneHour && now - new Date(e.receivedAt).getTime() < oneDay);
     const older = filtered.filter(e => !e.receivedAt || now - new Date(e.receivedAt).getTime() >= oneDay);
 
-    const Section = ({
-        label, threads, accent, dot,
-    }: { label: string; threads: EmailThread[]; accent: string; dot: string }) => {
+    const renderSection = (label: string, threads: EmailThread[], accent: string, dot: string) => {
         if (threads.length === 0) return null;
         return (
             <div className="flex flex-col gap-2">
@@ -372,9 +370,9 @@ function ImportantView({
 
     return (
         <div className="flex flex-col gap-5 p-4 overflow-y-auto custom-scrollbar flex-1 pb-20">
-            <Section label="Last Hour" threads={recent} accent="text-rose-400" dot="bg-rose-400" />
-            <Section label="Today" threads={today} accent="text-amber-400" dot="bg-amber-400" />
-            <Section label="Earlier" threads={older} accent="text-blue-400" dot="bg-blue-400" />
+            {renderSection('Last Hour', recent, 'text-rose-400', 'bg-rose-400')}
+            {renderSection('Today', today, 'text-amber-400', 'bg-amber-400')}
+            {renderSection('Earlier', older, 'text-blue-400', 'bg-blue-400')}
         </div>
     );
 }
@@ -399,9 +397,12 @@ function AllCategoriesView({
     const [dropTarget, setDropTarget] = useState<string | null>(null);
 
     // Reset lane order when active lanes change (e.g. role switch)
-    useEffect(() => {
+    const lanesKey = lanes.map(l => l.key).join(',');
+    const [prevLanesKey, setPrevLanesKey] = useState(lanesKey);
+    if (prevLanesKey !== lanesKey) {
+        setPrevLanesKey(lanesKey);
         setLaneOrder(loadLaneOrder(lanes));
-    }, [activeLanes]);
+    }
 
     // Bucket emails into lanes
     const laneEmails = new Map<string, EmailThread[]>(
@@ -524,15 +525,10 @@ export function SplitInbox({ inbox, mode, onEmailRead, roleKey }: SplitInboxProp
     const sorted = [...inbox].sort((a, b) => b.priorityScore - a.priorityScore);
     const allThreads = sorted;
 
-    const [selectedIndex, setSelectedIndex] = useState<number>(0);
+    const [rawSelectedIndex, setSelectedIndex] = useState<number>(0);
+    const selectedIndex = rawSelectedIndex < allThreads.length ? rawSelectedIndex : 0;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [openEmailId, setOpenEmailId] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (selectedIndex >= allThreads.length) {
-            setSelectedIndex(0);
-        }
-    }, [allThreads.length, selectedIndex]);
 
     const handleNext = useCallback(() => {
         if (isModalOpen) return;

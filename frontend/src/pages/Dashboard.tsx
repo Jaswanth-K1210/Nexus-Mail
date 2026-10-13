@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api, { syncAndProcess } from '../api';
 import { SplitInbox } from '../components/SplitInbox';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { AnalyticsDashboard } from '../components/AnalyticsDashboard';
 import { MeetingAlerts } from '../components/MeetingAlerts';
 import { UpcomingMeetings } from '../components/UpcomingMeetings';
@@ -12,6 +13,13 @@ import { AutoReplyLog } from '../components/AutoReplyLog';
 import type { EmailThread } from '../components/MailThreadCard';
 import { CommandPalette } from '../components/CommandPalette';
 import { UserDropdown } from '../components/UserDropdown';
+
+interface RawActionItem { id: string; text: string; status: string; source_sender?: string; source_subject?: string; received_at?: string }
+interface RawEmail {
+    _id: string; sender_name?: string; sender_email?: string; subject?: string; snippet?: string; is_read?: boolean;
+    priority_score?: number; category?: string; suggested_action?: string; risk_flags?: string[]; replied?: boolean;
+    received_at?: string; created_at?: string; action_items?: unknown[];
+}
 
 type Tab = 'home' | 'important' | 'all' | 'calendar';
 
@@ -94,9 +102,9 @@ export default function Dashboard() {
 
             // Populate email-derived tasks
             const items: EmailTask[] = (timelineRes.data.action_items || [])
-                .filter((a: any) => a.status === 'pending')
+                .filter((a: RawActionItem) => a.status === 'pending')
                 .slice(0, 15)
-                .map((a: any) => ({
+                .map((a: RawActionItem) => ({
                     id: a.id,
                     text: a.text,
                     sender: a.source_sender || '',
@@ -114,7 +122,7 @@ export default function Dashboard() {
             const draftMap = new Map();
             drafts.forEach((d: { email_id: string, ai_confidence: number }) => draftMap.set(d.email_id, d));
 
-            const mappedEmails: EmailThread[] = (emailsRes.data.emails || []).map((e: any) => {
+            const mappedEmails: EmailThread[] = (emailsRes.data.emails || []).map((e: RawEmail) => {
                 const draft = draftMap.get(e._id);
                 return {
                     id: e._id,
@@ -135,7 +143,7 @@ export default function Dashboard() {
 
             setInbox(mappedEmails);
 
-            const actionCount = (emailsRes.data.emails || []).reduce((acc: number, e: any) => acc + (e.action_items ? e.action_items.length : 0), 0);
+            const actionCount = (emailsRes.data.emails || []).reduce((acc: number, e: RawEmail) => acc + (e.action_items ? e.action_items.length : 0), 0);
 
             setProfile({
                 actionItems: actionCount,
@@ -573,7 +581,7 @@ export default function Dashboard() {
                     <div className="w-full flex flex-col gap-6 mb-12">
                         <MeetingAlerts />
                         <div className="w-full h-[820px] xl:h-[900px]">
-                            <SplitInbox inbox={inbox} mode="important" onEmailRead={handleEmailRead} roleKey={userRoleKey} />
+                            <ErrorBoundary name="the inbox"><SplitInbox inbox={inbox} mode="important" onEmailRead={handleEmailRead} roleKey={userRoleKey} /></ErrorBoundary>
                         </div>
                     </div>
                 )}
@@ -584,7 +592,7 @@ export default function Dashboard() {
                 {activeTab === 'all' && (
                     <div className="w-full flex flex-col gap-6 mb-12">
                         <div className="w-full h-[820px] xl:h-[900px]">
-                            <SplitInbox inbox={inbox} mode="all" onEmailRead={handleEmailRead} roleKey={userRoleKey} />
+                            <ErrorBoundary name="the inbox"><SplitInbox inbox={inbox} mode="all" onEmailRead={handleEmailRead} roleKey={userRoleKey} /></ErrorBoundary>
                         </div>
                     </div>
                 )}

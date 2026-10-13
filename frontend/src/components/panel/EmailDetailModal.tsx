@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Archive, CornerUpLeft, User, Calendar, Loader2, Brain, AlertTriangle, ShieldAlert, MessageSquare, RefreshCw, ClipboardCheck, FileSignature, Banknote, FileCheck, Bell } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { isAxiosError } from 'axios';
 import api from '../../api';
 
 interface EmailDetailModalProps {
@@ -9,10 +10,38 @@ interface EmailDetailModalProps {
     emailId: string;
 }
 
+type RiskFlag = string | { description?: string; [k: string]: string | undefined };
+type ActionItem = string | { task?: string; action?: string; due_date?: string; deadline?: string; assignee?: string };
+
+interface EmailDetail {
+    gmail_id?: string;
+    thread_id?: string;
+    subject?: string;
+    snippet?: string;
+    body_text?: string;
+    sender_name?: string;
+    sender_email?: string;
+    received_at: string;
+    category?: string;
+    priority_score: number;
+    suggested_action?: string;
+    summary?: string;
+    ai_summary?: string;
+    risk_flags?: RiskFlag[];
+    action_items?: ActionItem[];
+}
+
+interface Draft {
+    _id: string;
+    email_id: string;
+    draft_body?: string;
+    ai_confidence: number;
+}
+
 export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalProps) {
-    const [email, setEmail] = useState<any>(null);
-    const [threadMessages, setThreadMessages] = useState<any[]>([]);
-    const [draft, setDraft] = useState<any>(null);
+    const [email, setEmail] = useState<EmailDetail | null>(null);
+    const [threadMessages, setThreadMessages] = useState<EmailDetail[]>([]);
+    const [draft, setDraft] = useState<Draft | null>(null);
     const [draftBody, setDraftBody] = useState('');
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
@@ -51,7 +80,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                 try {
                     const draftsRes = await api.get('/drafts');
                     const drafts = draftsRes.data.drafts || [];
-                    const foundDraft = drafts.find((d: any) => d.email_id === emailId);
+                    const foundDraft = drafts.find((d: Draft) => d.email_id === emailId);
                     if (foundDraft) {
                         setDraft(foundDraft);
                         setDraftBody(foundDraft.draft_body || '');
@@ -104,9 +133,9 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
             const res = await api.post(`/drafts/generate/${emailId}`);
             setDraft(res.data);
             setDraftBody(res.data.draft_body || '');
-        } catch (err: any) {
+        } catch (err) {
             console.error("Failed to generate draft", err);
-            const detail = err?.response?.data?.detail || "Failed to generate draft. Please try again.";
+            const detail = (isAxiosError(err) && err.response?.data?.detail) || "Failed to generate draft. Please try again.";
             alert(detail);
         } finally {
             setGenerating(false);
@@ -133,7 +162,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
         try {
             setReclassifying(true);
             await api.put(`/gmail/emails/${emailId}/category`, { category: newCategory });
-            setEmail((prev: any) => prev ? { ...prev, category: newCategory } : prev);
+            setEmail((prev) => prev ? { ...prev, category: newCategory } : prev);
             setShowReclassify(false);
         } catch (err) {
             console.error("Failed to reclassify", err);
@@ -256,7 +285,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                                                 </button>
                                                 {showThread && (
                                                     <div className="flex flex-col gap-3">
-                                                        {threadMessages.map((msg: any, idx: number) => (
+                                                        {threadMessages.map((msg, idx) => (
                                                             <div
                                                                 key={idx}
                                                                 className={`glass-panel p-3 border text-sm ${
@@ -366,7 +395,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                                                     Security & Risk Warning
                                                 </h4>
                                                 <ul className="flex flex-col gap-2">
-                                                    {email.risk_flags.map((risk: any, i: number) => (
+                                                    {email.risk_flags.map((risk, i) => (
                                                         <li key={i} className="text-xs text-red-200/90 flex items-start gap-2 leading-relaxed">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0"></span>
                                                             {typeof risk === 'string' ? risk : risk.description || Object.values(risk)[0]}
@@ -383,7 +412,7 @@ export function EmailDetailModal({ isOpen, onClose, emailId }: EmailDetailModalP
                                                     Identified Actions ({email.action_items.length})
                                                 </h4>
                                                 <div className="flex flex-col gap-2">
-                                                    {email.action_items.map((action: any, idx: number) => {
+                                                    {email.action_items.map((action, idx) => {
                                                         // Support both flat strings and object format
                                                         const taskText = typeof action === 'string' ? action : action.task || action.action || '';
                                                         const dueDate = typeof action === 'object' ? action.due_date || action.deadline : null;
