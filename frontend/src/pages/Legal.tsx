@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 // Fill these before launch — every legal page reads from here.
+// Self-hosting? You are the operator: change these and the subprocessor table below.
 const OPERATOR = 'Jaswanth Koppisetty';               // legal entity or individual operating Nexus Mail
 const JURISDICTION = 'India';                        // governing law / courts
 const CONTACT = 'privacy@nexus-mail.me';             // privacy, legal and deletion requests

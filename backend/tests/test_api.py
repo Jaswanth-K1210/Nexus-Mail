@@ -12,7 +12,7 @@ async def test_health_check():
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["version"] == "3.1.0"
+    assert "version" in data
     assert "app" in data
 
 

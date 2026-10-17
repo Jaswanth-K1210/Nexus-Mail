@@ -241,7 +241,7 @@ GET  /api/agents/memory/{sender}    # Sender memory and episodes
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/Jaswanth-K1210/Nexus-Mail.git
-cd nexus-mail
+cd Nexus-Mail
 ```
 
 ### 2. Backend Setup
@@ -272,6 +272,9 @@ Your autonomous AI email platform is now running at `http://localhost:5173`.
 ```bash
 docker compose up -d --build
 ```
+
+### 5. Self-hosting publicly? Legal pages
+The Privacy Policy and Terms at `/privacy` and `/terms` describe the hosted service at nexus-mail.me. If you deploy your own public instance, **you** are the operator and need your own Google OAuth client. Google's OAuth verification requires a homepage and privacy policy on your domain. Edit the constants at the top of [`frontend/src/pages/Legal.tsx`](frontend/src/pages/Legal.tsx) (operator, jurisdiction, contact) and the subprocessor table to match your setup.
 
 ---
 
