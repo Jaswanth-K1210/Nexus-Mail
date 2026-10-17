@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { GhostCursor } from '../components/GhostCursor';
 import { Mail, Sparkles, Zap, Shield } from 'lucide-react';
@@ -122,7 +123,7 @@ export default function Login() {
                         </button>
 
                         <p className="mt-6 text-xs text-white/40 text-center font-light">
-                            By continuing, you agree to our Terms of Service and Architecture Manifesto.
+                            By continuing, you agree to our <Link to="/terms" className="underline hover:text-white/70">Terms of Service</Link> and <Link to="/privacy" className="underline hover:text-white/70">Privacy Policy</Link>.
                         </p>
                     </div>
                 </motion.div>

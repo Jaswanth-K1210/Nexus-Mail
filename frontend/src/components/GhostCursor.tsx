@@ -509,7 +509,6 @@ export const GhostCursor: React.FC<GhostCursorProps> = ({
         if (!el) return;
 
         if (mixBlendMode) {
-            // eslint-disable-next-line react-hooks/immutability
             el.style.mixBlendMode = String(mixBlendMode);
         } else {
             el.style.removeProperty('mix-blend-mode');

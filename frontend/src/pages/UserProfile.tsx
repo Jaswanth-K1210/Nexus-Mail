@@ -8,6 +8,7 @@ import {
     X, Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isAxiosError } from 'axios';
 import api, { syncAndProcess } from '../api';
 
 type SettingsSection = 'profile' | 'preferences' | 'sync' | 'appearance' | 'notifications' | 'security' | 'integrations' | 'help';
@@ -252,9 +253,9 @@ export default function UserProfile() {
             api.post('/gmail/reprocess').catch((err) => {
                 console.error('Auto-reprocessing failed', err);
             });
-        } catch (err: any) {
-            console.error('Save failed', err?.response?.data || err);
-            const detail = err?.response?.data?.detail;
+        } catch (err) {
+            const detail = isAxiosError(err) ? err.response?.data?.detail : undefined;
+            console.error('Save failed', (isAxiosError(err) && err.response?.data) || err);
             toast.error(detail ? `Save failed: ${detail}` : 'Failed to save settings. Please try again.');
         } finally {
             setSaving(false);
@@ -592,7 +593,7 @@ export default function UserProfile() {
                                                         ? autoReplyCategories.filter(c => c !== cat)
                                                         : [...autoReplyCategories, cat];
                                                     setAutoReplyCategories(newCats);
-                                                    try { await api.put('/auto-reply/settings', { enabled: true, categories: newCats }); } catch {}
+                                                    try { await api.put('/auto-reply/settings', { enabled: true, categories: newCats }); } catch { /* best-effort; toggle stays local */ }
                                                 }}
                                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all capitalize ${
                                                     autoReplyCategories.includes(cat)

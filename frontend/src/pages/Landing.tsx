@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GhostCursor } from '../components/GhostCursor';
 import { Sparkles, ChevronRight, Github } from 'lucide-react';
@@ -75,7 +75,7 @@ export default function Landing() {
                     transition={{ duration: 0.8, delay: 0.2 }}
                     className="text-gray-400 text-xl max-w-2xl leading-relaxed mt-6 mb-12 font-light"
                 >
-                    A privacy-first, zero-data retention command center.
+                    A privacy-first command center that never sells your data or trains on your mail.
                     Stop managing emails. Start dispatching workflows using lightning-fast AI.
                 </motion.p>
 
@@ -103,6 +103,11 @@ export default function Landing() {
                     <div className="flex items-center gap-2 opacity-50">
                         <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-white to-gray-500"></div>
                         <span className="font-semibold text-sm">Nexus Mail OS</span>
+                    </div>
+                    <div className="flex items-center gap-6 text-sm text-white/50">
+                        <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+                        <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+                        <a href="mailto:privacy@nexus-mail.me" className="hover:text-white transition-colors">Contact</a>
                     </div>
                     <p className="text-sm text-white/30">© 2026 Nexus Mail. Open Source under MIT License.</p>
                 </div>

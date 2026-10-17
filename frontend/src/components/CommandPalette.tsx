@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Zap, Command, Settings, X, Mail } from 'lucide-react';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
@@ -19,29 +19,51 @@ export function CommandPalette({ onAction }: CommandPaletteProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const returnFocusRef = useRef<HTMLElement | null>(null);
+
+    const open = () => {
+        returnFocusRef.current = document.activeElement as HTMLElement | null;
+        setQuery('');
+        setActiveIndex(0);
+        setIsOpen(true);
+    };
+
+    const close = () => {
+        setIsOpen(false);
+        returnFocusRef.current?.focus();
+    };
 
     // Toggle on CMD+K / CTRL+K
-    useKeyboardShortcut({ key: 'k', metaKey: true }, (e) => {
+    const toggle = (e: KeyboardEvent) => {
         e.preventDefault();
-        setIsOpen((prev) => !prev);
-    });
-
-    useKeyboardShortcut({ key: 'k', ctrlKey: true }, (e) => {
-        e.preventDefault();
-        setIsOpen((prev) => !prev);
-    });
+        if (isOpen) close();
+        else open();
+    };
+    useKeyboardShortcut({ key: 'k', metaKey: true }, toggle);
+    useKeyboardShortcut({ key: 'k', ctrlKey: true }, toggle);
 
     // Close on Escape
-    useKeyboardShortcut({ key: 'Escape' }, () => setIsOpen(false));
+    useKeyboardShortcut({ key: 'Escape' }, () => {
+        if (isOpen) close();
+    });
 
-    useEffect(() => {
-        if (isOpen) {
-            setQuery('');
-            setActiveIndex(0);
-            setTimeout(() => inputRef.current?.focus(), 50);
+    // Keep Tab / Shift+Tab inside the dialog
+    const trapFocus = (e: React.KeyboardEvent) => {
+        if (e.key !== 'Tab' || !dialogRef.current) return;
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+            'input, button, [href], [tabindex]:not([tabindex="-1"])',
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
         }
-    }, [isOpen]);
+    };
 
     const filtered = COMMANDS.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()));
 
@@ -61,7 +83,7 @@ export function CommandPalette({ onAction }: CommandPaletteProps) {
     };
 
     const handleSelect = (id: string) => {
-        setIsOpen(false);
+        close();
         onAction(id);
     };
 
@@ -70,9 +92,14 @@ export function CommandPalette({ onAction }: CommandPaletteProps) {
             {isOpen && (
                 <div className="fixed inset-0 z-50 flex items-start justify-center pt-32 bg-black/60">
                     {/* Click outside to close */}
-                    <div className="absolute inset-0" onClick={() => setIsOpen(false)} />
+                    <div className="absolute inset-0" onClick={close} />
 
                     <motion.div
+                        ref={dialogRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Command palette"
+                        onKeyDown={trapFocus}
                         initial={{ opacity: 0, scale: 0.95, y: -20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -20 }}
@@ -80,10 +107,15 @@ export function CommandPalette({ onAction }: CommandPaletteProps) {
                         className="relative w-full max-w-xl bg-nexus-card border border-white/10 rounded-xl shadow-[0_0_50px_rgba(177,158,239,0.15)] overflow-hidden flex flex-col"
                     >
                         <div className="flex items-center px-4 py-3 border-b border-white/10 gap-3">
-                            <Search className="w-5 h-5 text-gray-400" />
+                            <Search className="w-5 h-5 text-gray-400" aria-hidden="true" />
                             <input
-                                ref={inputRef}
+                                autoFocus
                                 type="text"
+                                role="combobox"
+                                aria-label="Search commands"
+                                aria-expanded="true"
+                                aria-controls="command-palette-list"
+                                aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}
                                 className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-gray-500 text-lg"
                                 placeholder="Type a command or search..."
                                 value={query}
@@ -99,13 +131,16 @@ export function CommandPalette({ onAction }: CommandPaletteProps) {
                             </div>
                         </div>
 
-                        <div className="py-2 max-h-80 overflow-y-auto custom-scrollbar">
+                        <div id="command-palette-list" role="listbox" aria-label="Commands" className="py-2 max-h-80 overflow-y-auto custom-scrollbar">
                             {filtered.length === 0 ? (
                                 <p className="px-4 py-8 text-center text-gray-500">No matching commands.</p>
                             ) : (
                                 filtered.map((cmd, idx) => (
                                     <div
                                         key={cmd.id}
+                                        id={`command-${cmd.id}`}
+                                        role="option"
+                                        aria-selected={idx === activeIndex}
                                         className={`px-4 py-3 mx-2 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${idx === activeIndex ? 'bg-nexus-primary/20 text-white' : 'text-gray-400 hover:bg-white/5'
                                             }`}
                                         onClick={() => handleSelect(cmd.id)}

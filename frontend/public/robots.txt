@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /$
+Allow: /privacy
+Allow: /terms
+Disallow: /
+
+Sitemap: https://nexus-mail.me/sitemap.xml
